@@ -1,0 +1,86 @@
+{
+  "projectType": "saas",
+  "projectName": "ClubConnect UK",
+  "projectDescription": "A comprehensive platform for managing dance and arts clubs, teacher scheduling, and school communications.",
+  "theme": "almond",
+  "primaryColor": "#8B5CF6",
+  "lightColor": "#C4B5FD",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/clubs",
+              "features/teachers",
+              "features/cover-scheduling",
+              "features/broadcasts",
+              "features/calendar"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/authentication",
+              "guides/database-schema",
+              "guides/deployment"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Database",
+            "pages": [
+              "api/schema-overview",
+              "api/tables",
+              "api/types"
+            ]
+          },
+          {
+            "group": "Authentication",
+            "pages": [
+              "api/supabase-auth"
+            ]
+          },
+          {
+            "group": "Queries",
+            "pages": [
+              "api/react-query-hooks"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Club and school management with status tracking",
+    "Teacher scheduling and cover assignment system",
+    "Broadcast messaging via SMS and email",
+    "Interactive calendar for managing cover occurrences",
+    "AI-powered assistant for recommendations",
+    "Supabase authentication and real-time database"
+  ],
+  "publicApiSurface": [
+    "Club Management: CRUD operations for clubs, schools, and cover rules",
+    "Teacher Management: Manage teacher profiles, assignments, and availability",
+    "Cover Scheduling: Create and manage cover occurrences and assignments",
+    "Broadcasts: Send targeted messages to teachers via multiple channels",
+    "Calendar: View and manage cover schedules with drag-and-drop",
+    "Dashboard: View KPIs and upcoming agenda items",
+    "Authentication: Supabase auth with protected routes"
+  ]
+}

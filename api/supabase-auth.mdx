@@ -1,0 +1,414 @@
+---
+title: Supabase Authentication & Security
+description: Authentication methods, Row-Level Security policies, and session management
+---
+
+## Overview
+
+ClubConnect UK uses Supabase for authentication and database access. The system implements Row-Level Security (RLS) policies to ensure data is only accessible to authorized users.
+
+## Supabase Client Setup
+
+### Client Configuration
+
+The Supabase client is initialized with automatic session management:
+
+```typescript
+// src/services/supabase.ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})
+```
+
+<ParamField path="autoRefreshToken" type="boolean" default="true">
+  Automatically refresh the access token before it expires
+</ParamField>
+
+<ParamField path="persistSession" type="boolean" default="true">
+  Store session in localStorage for persistence across page reloads
+</ParamField>
+
+<ParamField path="detectSessionInUrl" type="boolean" default="true">
+  Detect session from URL parameters (for OAuth redirects)
+</ParamField>
+
+## Authentication Methods
+
+### Email/Password Authentication
+
+ClubConnect uses email and password authentication for staff access.
+
+#### Sign In
+
+```typescript
+import { supabase } from '@/services/supabase'
+
+async function signIn(email: string, password: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  })
+
+  if (error) {
+    console.error('Sign in error:', error.message)
+    return { error }
+  }
+
+  return { user: data.user, session: data.session }
+}
+```
+
+<ParamField path="email" type="string" required>
+  User's email address
+</ParamField>
+
+<ParamField path="password" type="string" required>
+  User's password
+</ParamField>
+
+<ResponseField name="user" type="User">
+  Authenticated user object
+</ResponseField>
+
+<ResponseField name="session" type="Session">
+  Active session with access and refresh tokens
+</ResponseField>
+
+#### Sign Out
+
+```typescript
+async function signOut() {
+  const { error } = await supabase.auth.signOut()
+  
+  if (error) {
+    console.error('Sign out error:', error.message)
+    return { error }
+  }
+  
+  return { success: true }
+}
+```
+
+### Session Management
+
+The application uses TanStack Store for client-side auth state management.
+
+```typescript
+// src/features/auth/store.ts
+import { Store } from '@tanstack/store'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '@/services/supabase'
+
+interface AuthState {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
+
+const initialState: AuthState = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+}
+
+export const authStore = new Store<AuthState>(initialState)
+
+// Initialize auth state from Supabase session
+export async function initializeAuth() {
+  const { data: { session } } = await supabase.auth.getSession()
+
+  authStore.setState(() => ({
+    user: session?.user ?? null,
+    isAuthenticated: !!session?.user,
+    isLoading: false,
+  }))
+
+  // Listen for auth state changes
+  supabase.auth.onAuthStateChange((_event, newSession) => {
+    authStore.setState(() => ({
+      user: newSession?.user ?? null,
+      isAuthenticated: !!newSession?.user,
+      isLoading: false,
+    }))
+  })
+}
+```
+
+### Getting Current User
+
+```typescript
+import { getCurrentUser, isAuthenticated } from '@/features/auth/store'
+
+const user = getCurrentUser()
+const authenticated = isAuthenticated()
+
+if (authenticated && user) {
+  console.log('Logged in as:', user.email)
+}
+```
+
+## Row-Level Security (RLS) Policies
+
+All tables in ClubConnect have RLS enabled. Policies are defined to control access based on user roles.
+
+### Policy Overview
+
+<Expandable title="person_details Policies">
+  **Service Role Access**
+  - Service role can perform all operations (INSERT, SELECT, UPDATE, DELETE)
+  
+  **Authenticated Users**
+  - Can SELECT (read) all person details
+  - Cannot modify data directly
+
+  ```sql
+  CREATE POLICY "Service role can manage person_details"
+    ON public.person_details FOR ALL TO service_role
+    USING (true) WITH CHECK (true);
+
+  CREATE POLICY "Authenticated users can view person_details"
+    ON public.person_details FOR SELECT TO authenticated
+    USING (true);
+  ```
+</Expandable>
+
+<Expandable title="schools Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT active schools only
+  - Can INSERT, UPDATE, DELETE schools (admin function)
+
+  ```sql
+  CREATE POLICY "Authenticated users can view active schools"
+    ON public.schools FOR SELECT TO authenticated
+    USING (status = 'active');
+
+  CREATE POLICY "Authenticated users can manage schools"
+    ON public.schools FOR ALL TO authenticated
+    USING (true) WITH CHECK (true);
+  ```
+</Expandable>
+
+<Expandable title="clubs Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT all clubs
+  - Can INSERT, UPDATE, DELETE clubs
+
+  ```sql
+  CREATE POLICY "Authenticated users can view clubs"
+    ON public.clubs FOR SELECT TO authenticated
+    USING (true);
+
+  CREATE POLICY "Authenticated users can manage clubs"
+    ON public.clubs FOR ALL TO authenticated
+    USING (true) WITH CHECK (true);
+  ```
+</Expandable>
+
+<Expandable title="teachers Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT non-blocked teachers only
+  - Can INSERT, UPDATE, DELETE teachers
+
+  ```sql
+  CREATE POLICY "Authenticated users can view non-blocked teachers"
+    ON public.teachers FOR SELECT TO authenticated
+    USING (is_blocked = false);
+
+  CREATE POLICY "Authenticated users can manage teachers"
+    ON public.teachers FOR ALL TO authenticated
+    USING (true) WITH CHECK (true);
+  ```
+</Expandable>
+
+<Expandable title="cover_rules Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT active cover rules only
+
+  ```sql
+  CREATE POLICY "Authenticated users can view active cover_rules"
+    ON public.cover_rules FOR SELECT TO authenticated
+    USING (status = 'active');
+  ```
+</Expandable>
+
+<Expandable title="cover_occurrences Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT all occurrences
+
+  ```sql
+  CREATE POLICY "Authenticated users can view cover_occurrences"
+    ON public.cover_occurrences FOR SELECT TO authenticated
+    USING (true);
+  ```
+</Expandable>
+
+<Expandable title="teacher_cover_assignments Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT all assignments
+
+  ```sql
+  CREATE POLICY "Authenticated users can view teacher_cover_assignments"
+    ON public.teacher_cover_assignments FOR SELECT TO authenticated
+    USING (true);
+  ```
+</Expandable>
+
+<Expandable title="broadcasts and messages Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT all broadcasts and messages
+
+  ```sql
+  CREATE POLICY "Authenticated users can view broadcasts"
+    ON public.broadcasts FOR SELECT TO authenticated
+    USING (true);
+
+  CREATE POLICY "Authenticated users can view messages"
+    ON public.messages FOR SELECT TO authenticated
+    USING (true);
+  ```
+</Expandable>
+
+<Expandable title="documents Policies">
+  **Service Role Access**
+  - Full access to all operations
+  
+  **Authenticated Users**
+  - Can SELECT active documents only
+
+  ```sql
+  CREATE POLICY "Authenticated users can view active documents"
+    ON public.documents FOR SELECT TO authenticated
+    USING (status = 'active');
+  ```
+</Expandable>
+
+### Security Best Practices
+
+<Warning>
+  **Important Security Notes:**
+  
+  - Current policies grant broad access to authenticated users
+  - Production deployments should implement more granular permissions
+  - Consider adding custom claims for school-specific access control
+  - Implement role-based access control (RBAC) for different user types
+</Warning>
+
+### Future Security Enhancements
+
+The current RLS setup is designed for initial deployment. Future enhancements include:
+
+1. **School-based access control**: Users can only access data for their school
+2. **Role-based permissions**: Different access levels for admins, teachers, and staff
+3. **Teacher self-service**: Teachers can update their own profiles
+4. **Audit logging**: Track who modified what and when
+
+## Query Examples with Auth
+
+### Fetching Data as Authenticated User
+
+```typescript
+import { supabase } from '@/services/supabase'
+
+// Automatically uses current session
+const { data: schools, error } = await supabase
+  .from('schools')
+  .select('*')
+  .eq('status', 'active')
+
+if (error) {
+  console.error('Error:', error)
+} else {
+  console.log('Schools:', schools)
+}
+```
+
+### Checking User Permissions
+
+```typescript
+function canManageSchool(user: User | null): boolean {
+  if (!user) return false
+  
+  // Add custom logic based on user metadata or roles
+  // Example: check for admin role in user metadata
+  return user.user_metadata?.role === 'admin'
+}
+```
+
+### Protected API Calls
+
+```typescript
+async function createSchool(schoolData: any) {
+  const user = getCurrentUser()
+  
+  if (!user) {
+    throw new Error('Authentication required')
+  }
+  
+  const { data, error } = await supabase
+    .from('schools')
+    .insert(schoolData)
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+}
+```
+
+## Environment Variables
+
+Required environment variables for Supabase configuration:
+
+```bash
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+
+<ParamField path="VITE_SUPABASE_URL" type="string" required>
+  Your Supabase project URL
+</ParamField>
+
+<ParamField path="VITE_SUPABASE_ANON_KEY" type="string" required>
+  Public anonymous key (safe for client-side use)
+</ParamField>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="React Query Hooks" icon="react" href="/api/react-query-hooks">
+    Learn about data fetching hooks
+  </Card>
+  <Card title="Database Tables" icon="table" href="/api/tables">
+    Explore table schemas and relationships
+  </Card>
+</CardGroup>

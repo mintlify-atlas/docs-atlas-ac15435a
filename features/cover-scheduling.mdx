@@ -1,0 +1,472 @@
+---
+title: 'Cover Scheduling'
+description: 'Visual calendar for managing after-school club sessions and teacher assignments'
+icon: 'calendar'
+---
+
+## Overview
+
+The Cover Scheduling system is the heart of ClubConnect UK's session management. It provides multiple calendar views (month, week, day, schedule, year) for visualizing and managing cover occurrences—the individual instances of club sessions generated from cover rules.
+
+Administrators can drag-and-drop sessions, assign teachers, and track session status all from an interactive calendar interface.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multiple Views" icon="eye">
+    Switch between Month, Week, Day, 4-Day, Schedule, and Year views
+  </Card>
+  <Card title="Drag & Drop" icon="arrows-up-down-left-right">
+    Move sessions to different dates by dragging
+  </Card>
+  <Card title="Quick Actions" icon="bolt">
+    Add, edit, view, and delete sessions with quick-view panels
+  </Card>
+  <Card title="School Filter" icon="filter">
+    View covers for specific schools or all schools
+  </Card>
+  <Card title="Color Coding" icon="palette">
+    Sessions color-coded by school for easy identification
+  </Card>
+  <Card title="Teacher Assignment" icon="user-check">
+    Assign and track teacher availability and confirmations
+  </Card>
+</CardGroup>
+
+## User Interface
+
+### Calendar Toolbar
+
+The unified toolbar at the top provides:
+
+**Navigation Controls:**
+- **← / → Arrows** - Navigate previous/next period
+- **Today Button** - Jump to current date
+- **Date Display** - Shows current month/week/day/year
+
+**Filters & Views:**
+- **School Dropdown** - Filter by school ("All Schools" or specific school)
+- **View Toggle** - Switch between 6 view modes
+
+<Frame>
+  <img src="/images/calendar-toolbar.png" alt="Calendar toolbar with navigation, school filter, and view toggle" />
+</Frame>
+
+### View Modes
+
+<Tabs>
+  <Tab title="Month View">
+    **Best for:** Overview of the entire month
+    
+    Features:
+    - Shows all days in grid layout
+    - Events displayed as colored blocks
+    - Shows club name, school, and assigned teacher initials
+    - Click "show more" to see overflow events in popover
+    - Grey out off-month days (cannot click)
+  </Tab>
+  
+  <Tab title="Week View">
+    **Best for:** Detailed weekly planning
+    
+    Features:
+    - 7-day layout with time slots (7 AM - 10 PM)
+    - Events show full details: club name, school, teacher
+    - Drag events vertically to change time
+    - Drag horizontally to change day
+    - Auto-scrolls to 9 AM on load
+  </Tab>
+  
+  <Tab title="Day View">
+    **Best for:** Single-day focus, mobile devices
+    
+    Features:
+    - Shows one day with hourly time grid
+    - Maximum detail for each session
+    - Large event blocks with full information
+    - Ideal for touch-screen devices
+  </Tab>
+  
+  <Tab title="4-Day View (Work Week)">
+    **Best for:** School week planning (Monday-Thursday)
+    
+    Features:
+    - Compact 4-column layout
+    - Focuses on typical school days
+    - Same functionality as week view
+  </Tab>
+  
+  <Tab title="Schedule View">
+    **Best for:** List-based management, printing
+    
+    Features:
+    - Linear list of upcoming sessions
+    - Grouped by date
+    - Shows all session details in rows
+    - Easy to scan and print
+  </Tab>
+  
+  <Tab title="Year View">
+    **Best for:** Long-term planning, term overview
+    
+    Features:
+    - 12-month mini calendars
+    - Dots indicate days with sessions
+    - Click any month to jump to month view
+    - High-level capacity visualization
+  </Tab>
+</Tabs>
+
+## Working with Cover Sessions
+
+### Viewing Session Details
+
+Click any calendar event to open the **Quick View** panel:
+
+**Displays:**
+- Club name and description
+- School name
+- Date and time (formatted: "Mon, 15 Jan 2025, 3:00 PM - 4:00 PM")
+- Session status badge (Not Started / In Progress / Completed)
+- Priority level (Low / Medium / High)
+- Assigned teachers with status:
+  - Invited (pending response)
+  - Accepted (confirmed)
+  - Declined (rejected)
+  - Confirmed (admin verified)
+- Session notes
+
+**Actions:**
+- **Edit** - Opens edit form
+- **Delete** - Removes session with confirmation
+
+<Frame>
+  <img src="/images/quick-view-panel.png" alt="Quick view panel showing session details and teacher assignments" />
+</Frame>
+
+### Creating New Sessions
+
+<Steps>
+  <Step title="Click Empty Time Slot">
+    Click any empty date/time in the calendar (month view: click date; week/day view: click time slot)
+  </Step>
+  <Step title="Quick Add Form Opens">
+    Pre-filled with selected date/time and current school filter
+  </Step>
+  <Step title="Select Club">
+    Choose from dropdown of clubs at the selected school
+  </Step>
+  <Step title="Set Time (if needed)">
+    Adjust start and end times (auto-filled from club's cover rule)
+  </Step>
+  <Step title="Add Details">
+    - Priority level
+    - Status
+    - Optional notes
+  </Step>
+  <Step title="Save">
+    Session appears on calendar immediately
+  </Step>
+</Steps>
+
+<Note>
+  Most sessions are auto-generated from Cover Rules. Manual creation is for one-off sessions, make-up classes, or special events.
+</Note>
+
+### Drag and Drop Rescheduling
+
+Move sessions to different dates/times by dragging:
+
+**From Calendar:**
+1. Click and hold event block
+2. Drag to new date/time slot
+3. Release to drop
+4. Confirmation toast appears
+5. Session updated with new date
+
+**From "Show More" Popover:**
+1. In month view, click "+X more" link
+2. Popover shows overflow events
+3. Drag event from popover to any calendar date
+4. Session moves to that day (keeps original time)
+
+<CodeGroup>
+
+```typescript Event Drop Handler
+const handleEventDrop = async (
+  occurrence: CoverOccurrence,
+  newDate: Date,
+) => {
+  const dateStr = format(newDate, 'yyyy-MM-dd')
+
+  try {
+    await moveOccurrence.mutateAsync({
+      id: occurrence.id,
+      newDate: dateStr,
+    })
+    toast.success(`Moved cover to ${format(newDate, 'PPP')}`)
+  } catch (error) {
+    toast.error('Failed to move cover session')
+  }
+}
+```
+
+</CodeGroup>
+
+### Editing Sessions
+
+From quick view or directly:
+
+<Tabs>
+  <Tab title="Quick Edit">
+    1. Click event to open Quick View
+    2. Click "Edit" button
+    3. Form opens with current data
+    4. Modify fields
+    5. Save updates
+  </Tab>
+  
+  <Tab title="Bulk Changes">
+    For multiple sessions:
+    1. Edit the parent Cover Rule (in Clubs → Configuration)
+    2. Future occurrences adopt new schedule
+    3. Past occurrences remain unchanged
+  </Tab>
+</Tabs>
+
+### Deleting Sessions
+
+**Single Session:**
+1. Open Quick View
+2. Click "Delete"
+3. Confirm deletion dialog
+4. Session removed from calendar
+
+**Multiple Sessions:**
+- Delete the Cover Rule (in Clubs) to stop future generation
+- Existing occurrences must be deleted individually or left as-is
+
+<Warning>
+  Deleting a session is permanent and cannot be undone. Consider changing the status to "Cancelled" instead to preserve records.
+</Warning>
+
+## Teacher Assignments
+
+### Assignment Statuses
+
+Each teacher-cover assignment can have these states:
+
+```typescript
+type AssignmentStatus = 
+  | 'invited'    // Teacher invited, awaiting response
+  | 'accepted'   // Teacher accepted the cover
+  | 'declined'   // Teacher declined the cover
+  | 'pending'    // Assignment created, not yet sent
+  | 'confirmed'  // Admin confirmed the assignment
+```
+
+**Status Flow:**
+```
+Pending → Invited → Accepted/Declined → Confirmed
+```
+
+### Assigning Teachers
+
+Teachers are typically assigned via:
+
+1. **Broadcast System** - Send availability requests to multiple teachers
+2. **Direct Assignment** - Manually assign in Quick Add/Edit form
+3. **Cover Response** - Teachers accept invitations
+
+<Info>
+  The [Broadcasts](/features/broadcasts) feature is the recommended way to find available teachers for covers. It sends requests to your teacher pool and lets them accept/decline.
+</Info>
+
+## Data Models
+
+Cover occurrences use these TypeScript interfaces:
+
+<CodeGroup>
+
+```typescript Cover Occurrence
+export interface CoverOccurrence {
+  id: string
+  cover_rule_id: string
+  meeting_date: string          // YYYY-MM-DD
+  actual_start?: string | null  // ISO timestamp
+  actual_end?: string | null    // ISO timestamp
+  notes?: string | null
+  status: OccurrenceStatus
+  priority: Priority
+  created_at: string
+  updated_at: string
+  cover_rule?: CoverRule
+  assignments?: Array<TeacherCoverAssignment>
+}
+
+export type OccurrenceStatus = 
+  | 'not_started' 
+  | 'in_progress' 
+  | 'completed'
+
+export type Priority = 'low' | 'medium' | 'high'
+```
+
+```typescript Calendar Event
+export interface CalendarEvent {
+  id: string
+  title: string           // Club/School name
+  start: Date             // Display start time
+  end: Date               // Display end time (+1 hour)
+  displayStart: Date      // Actual start time
+  displayEnd: Date        // Actual end time
+  resource: CoverOccurrence  // Full occurrence data
+}
+```
+
+</CodeGroup>
+
+## Color Coding System
+
+Events are color-coded by school for quick identification:
+
+```typescript
+const getSchoolColors = (schoolName: string) => {
+  // Auto-generates consistent colors per school
+  return {
+    bgHex: '#E8F5E9',      // Light background
+    textHex: '#2E7D32',    // Dark text
+    borderHex: '#4CAF50',  // Border accent
+  }
+}
+```
+
+**Visual Design:**
+- **Month View**: Small blocks with left border stripe
+- **Week/Day View**: Larger blocks with 4px left border
+- **School Name**: Displayed in semibold
+- **Teacher Initials**: Shown in badge (month) or inline (week)
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Appropriate Views">
+    - **Month View**: Planning ahead, checking availability
+    - **Week View**: Day-to-day operations, detailed scheduling
+    - **Day View**: Focused work, especially on mobile
+    - **Schedule View**: Reporting, printing, linear workflows
+    - **Year View**: Term planning, capacity analysis
+  </Accordion>
+
+  <Accordion title="Drag Carefully">
+    When dragging events:
+    - Verify the destination date/time before releasing
+    - Check for conflicts with other sessions
+    - Ensure assigned teachers are available at new time
+    - Use the confirmation toast to verify the move
+  </Accordion>
+
+  <Accordion title="School Filtering">
+    Use school filters to:
+    - Reduce visual clutter in multi-school setups
+    - Focus on one school's schedule at a time
+    - Create school-specific reports/screenshots
+    - Avoid accidentally scheduling at wrong school
+  </Accordion>
+
+  <Accordion title="Status Management">
+    Keep session statuses updated:
+    - **Not Started**: Default for future sessions
+    - **In Progress**: Mark when session begins
+    - **Completed**: Mark after session ends
+    - Use status filters in Schedule view for reporting
+  </Accordion>
+
+  <Accordion title="Priority Levels">
+    Use priority to flag:
+    - **High**: Urgent covers, teacher shortages
+    - **Medium**: Standard covers
+    - **Low**: Optional enrichment sessions
+  </Accordion>
+</AccordionGroup>
+
+## Advanced Features
+
+### Mini Calendar & Upcoming List
+
+The calendar interface includes a sidebar (when screen width permits) showing:
+
+**Mini Calendar:**
+- Small month view with dots on dates with sessions
+- Click any date to jump to it in main calendar
+
+**Upcoming Covers:**
+- List of next 5-10 sessions
+- Shows club, school, date, time
+- Click to view details
+- Quick reference without navigating
+
+### Event Details Panel
+
+Extended information panel (accessible from various views):
+- Full cover rule details
+- Complete teacher assignment history
+- Status change timeline
+- Related club information
+- Edit history and audit trail
+
+<Frame>
+  <img src="/images/event-details-panel.png" alt="Extended event details showing full history and assignments" />
+</Frame>
+
+## Common Scenarios
+
+### Scenario: Planning a New Term
+
+1. Switch to **Year View** to see term overview
+2. Click the first month of term
+3. Switch to **Month View**
+4. Verify auto-generated sessions from cover rules
+5. Use **School Filter** to review each school
+6. Add any one-off special sessions
+7. Send broadcast for teacher availability
+
+### Scenario: Emergency Rescheduling
+
+When a session needs to move (e.g., school closure):
+
+1. Find session in **Week View**
+2. Drag to alternative date/time
+3. Check assigned teacher is available
+4. If not, open Quick View → Edit
+5. Reassign teacher or mark as "High Priority"
+6. Use [Broadcasts](/features/broadcasts) to find replacement
+
+### Scenario: Daily Operations
+
+**Morning routine:**
+1. Open **Day View** for today
+2. Review all sessions scheduled
+3. Check teacher assignments (all confirmed?)
+4. Mark any completed sessions
+5. Update notes with attendance or issues
+
+**Throughout the day:**
+- Mark sessions as "In Progress" when they start
+- Add notes about any incidents or highlights
+- Mark "Completed" when finished
+- Update teacher assignments if substitutions occur
+
+## Related Features
+
+<CardGroup cols={3}>
+  <Card title="Clubs" icon="users" href="/features/clubs">
+    Manage clubs and cover rules that generate sessions
+  </Card>
+  <Card title="Teachers" icon="chalkboard-user" href="/features/teachers">
+    View and manage teacher availability
+  </Card>
+  <Card title="Broadcasts" icon="bullhorn" href="/features/broadcasts">
+    Request teacher availability for covers
+  </Card>
+</CardGroup>

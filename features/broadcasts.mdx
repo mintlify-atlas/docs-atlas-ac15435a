@@ -1,0 +1,539 @@
+---
+title: 'Broadcasts'
+description: 'Send bulk messages and availability requests to teachers via email and WhatsApp'
+icon: 'bullhorn'
+---
+
+## Overview
+
+The Broadcast system enables administrators to send targeted messages to groups of teachers. The primary use case is requesting availability for cover sessions, but it also supports newsletters, announcements, and custom messages via email and WhatsApp.
+
+Broadcasts use a multi-step creation flow to select recipients, compose messages, and review before sending.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-Channel" icon="paper-plane">
+    Send via Email (SMTP) and/or WhatsApp Business API
+  </Card>
+  <Card title="Teacher Selection" icon="users">
+    Filter and select recipients by styles, status, and search
+  </Card>
+  <Card title="Templates" icon="file-lines">
+    Use pre-built templates for common messages
+  </Card>
+  <Card title="Cover Requests" icon="calendar-check">
+    Attach specific cover sessions to availability requests
+  </Card>
+  <Card title="Variable Insertion" icon="code">
+    Personalize with {{first_name}}, {{cover_details}}, etc.
+  </Card>
+  <Card title="Status Tracking" icon="chart-line">
+    Monitor broadcast status (Draft, Scheduled, Sent, Failed)
+  </Card>
+</CardGroup>
+
+## Broadcast Creation Flow
+
+The broadcast creation process has 3 steps:
+
+<Steps>
+  <Step title="Step 1: Select Audience">
+    Choose which teachers will receive the broadcast
+  </Step>
+  <Step title="Step 2: Compose Message">
+    Write subject and message, select channels and template
+  </Step>
+  <Step title="Step 3: Review & Send">
+    Preview the broadcast and send to recipients
+  </Step>
+</Steps>
+
+### Step 1: Select Audience
+
+The audience selection step provides a full teacher data table with selection checkboxes:
+
+**Teacher Table Features:**
+- **Search Bar** - Search across names, emails, contacts
+- **Primary Styles Filter** - Filter by teaching specialty (auto-populated)
+- **Status Filter** - Filter by Active/Blocked status
+- **Bulk Selection** - Select all checkbox in header
+- **Individual Selection** - Checkboxes per row
+
+**Selected Teachers Panel:**
+- Shows selected count with avatar preview
+- "Selected" button opens side sheet with full list
+- Remove individual teachers from selection
+- Real-time count updates
+
+<Frame>
+  <img src="/images/broadcast-audience.png" alt="Teacher selection table with filters and selection checkboxes" />
+</Frame>
+
+**Table Columns:**
+
+| Column | Details | Filterable |
+|--------|---------|------------|
+| Select | Checkbox | - |
+| Teacher | Avatar + Name + Email | Searchable |
+| Primary Style | Badge with style | Yes (dropdown) |
+| Status | Active/Blocked badge | Yes (dropdown) |
+| Contact | Phone number | Searchable |
+
+**Selection Sheet:**
+
+Click "Selected" button to see:
+- Full list of chosen teachers
+- Avatar + Name + Email for each
+- Remove (X) button per teacher
+- Total count in header
+
+<Tabs>
+  <Tab title="Add Recipients">
+    Check boxes next to teachers in the main table
+  </Tab>
+  <Tab title="Bulk Select">
+    Click header checkbox to select all filtered teachers
+  </Tab>
+  <Tab title="Remove Recipients">
+    Open Selected sheet and click X next to teacher
+  </Tab>
+</Tabs>
+
+<Note>
+  You must select at least one teacher to proceed to Step 2.
+</Note>
+
+### Step 2: Compose Message
+
+The compose step has a two-column layout:
+
+**Left Column - Settings:**
+
+**Channels Card:**
+- **Email** (via SMTP) - Toggle checkbox
+- **WhatsApp** (Business API) - Toggle checkbox
+- Must select at least one channel
+
+**Template Selector:**
+- Cover Availability Request
+- Monthly Newsletter
+- Urgent Announcement
+- Custom Message
+
+**Cover Selection** (appears when "Cover Availability Request" template selected):
+- Shows count of selected covers
+- "Add Unassigned Cover" button opens sheet
+- List of available upcoming covers
+- Checkboxes to select specific sessions
+- Shows date, time, location for each cover
+- Selected covers appear as removable pills
+
+**Variables Card:**
+- Click to insert: `{{first_name}}`, `{{subject}}`, `{{date_today}}`, `{{cover_details}}`
+- Variables auto-replaced when sending
+
+<Frame>
+  <img src="/images/broadcast-compose.png" alt="Compose interface with settings panel and message editor" />
+</Frame>
+
+**Right Column - Message Editor:**
+
+**Subject Line:**
+- Large input at top
+- Placeholder: "Subject Line"
+- Supports variables
+
+**Toolbar:**
+- Bold, Italic, Underline formatting (visual only)
+
+**Message Body:**
+- Large textarea (min 300px height)
+- Supports multi-line text
+- Insert variables by clicking from left panel
+- Auto-expands as needed
+
+<CodeGroup>
+
+```text Example: Cover Request
+Subject: Cover Opportunity - {{date_today}}
+
+Hi {{first_name}},
+
+We have some upcoming after-school club sessions that need cover teachers:
+
+{{cover_details}}
+
+Please reply if you're available for any of these sessions. First come, first served!
+
+Thanks,
+Admin Team
+```
+
+```text Example: Newsletter
+Subject: Monthly Update - January 2025
+
+Hi {{first_name}},
+
+Welcome to the January newsletter! Here's what's happening this month:
+
+- New clubs starting: Drama, Coding, Art
+- Term dates reminder: Half-term 10-14 Feb
+- Upcoming training: First Aid on 20 Jan
+
+See you at the clubs!
+```
+
+</CodeGroup>
+
+**Template Pre-fills:**
+
+When you select a template, subject and message are auto-populated:
+
+- **Cover Availability Request**: Includes {{cover_details}} variable and professional tone
+- **Newsletter**: Friendly format with sections
+- **Urgent Announcement**: Bold subject with urgent language
+- **Custom**: Blank slate
+
+### Step 3: Review & Send
+
+The final step shows a preview of the broadcast:
+
+**Summary Cards:**
+- **Recipients**: Count and first 5 teacher names
+- **Channels**: Email and/or WhatsApp badges
+- **Subject**: Full subject line with variables replaced
+- **Message**: Full message body with formatting
+- **Covers** (if applicable): List of attached sessions
+
+**Actions:**
+- **Back**: Return to edit message
+- **Send Now**: Immediately dispatch to all recipients
+- **Schedule** (future): Set send time
+
+<Frame>
+  <img src="/images/broadcast-review.png" alt="Review screen showing broadcast summary before sending" />
+</Frame>
+
+<Warning>
+  Once you click "Send Now", the broadcast is immediately queued for delivery. Review carefully before sending.
+</Warning>
+
+## Managing Broadcasts
+
+The broadcast list view shows all past and scheduled broadcasts:
+
+**List View Table:**
+
+| Column | Description |
+|--------|-------------|
+| Subject | Broadcast subject line |
+| Status | Draft / Scheduled / Sent / Failed |
+| Recipients | Count of teachers |
+| Sent Date | When broadcast was sent |
+| Actions | View details |
+
+**Status Meanings:**
+
+<Tabs>
+  <Tab title="Draft">
+    Broadcast created but not sent. Can be edited and resumed.
+  </Tab>
+  <Tab title="Scheduled">
+    Queued to send at a future date/time.
+  </Tab>
+  <Tab title="Sent">
+    Successfully delivered to all recipients.
+  </Tab>
+  <Tab title="Failed">
+    Delivery failed for some/all recipients. Check logs.
+  </Tab>
+</Tabs>
+
+**Filters:**
+- Status dropdown filter (Draft, Scheduled, Sent, Failed)
+- Search broadcasts by subject
+- Show entries: 10, 25, 50, 100 per page
+
+## Data Models
+
+Broadcasts use these TypeScript interfaces:
+
+<CodeGroup>
+
+```typescript Broadcast
+export interface Broadcast {
+  id: string
+  subject: string
+  message?: string
+  sent_date: string
+  status: 'draft' | 'scheduled' | 'sent' | 'failed'
+  recipients_count?: number
+  created_at: string
+  updated_at: string
+}
+```
+
+```typescript Broadcast Form State
+export interface BroadcastFormState {
+  step: number                    // 1, 2, or 3
+  selectedTeachers: Array<string> // Teacher IDs
+  subject: string
+  message: string
+  channels: {
+    email: boolean
+    whatsapp: boolean
+  }
+  template: string                // Template name
+  selectedCovers: Array<string>   // Cover occurrence IDs
+}
+```
+
+```typescript Send Broadcast Payload
+interface SendBroadcastPayload {
+  subject: string
+  message: string
+  teacherIds: Array<string>
+  coverIds?: Array<string>
+}
+```
+
+</CodeGroup>
+
+## API Operations
+
+**Send Broadcast:**
+
+```typescript
+const sendBroadcast = useSendBroadcast()
+
+const result = await sendBroadcast.mutateAsync({
+  subject: 'Cover Opportunity - 15 Jan',
+  message: 'Hi {{first_name}}, we need cover for...\n\n{{cover_details}}',
+  teacherIds: ['teacher-id-1', 'teacher-id-2'],
+  coverIds: ['cover-id-1', 'cover-id-2']
+})
+
+// Result:
+// { sent: 25, failed: 2 }
+```
+
+**Response Handling:**
+```typescript
+toast.promise(sendPromise, {
+  loading: 'Sending broadcast...',
+  success: (data) => {
+    if (data.failed > 0) {
+      return `Sent to ${data.sent} recipients. Failed: ${data.failed}.`
+    }
+    return `Successfully sent to all ${data.sent} recipients.`
+  },
+  error: (err) => err.message || 'Failed to send broadcast'
+})
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Subjects">
+    Subject lines should clearly indicate:
+    - Purpose (Cover Request, Newsletter, etc.)
+    - Date or urgency ("Urgent", "This Week")
+    - Key information ("3 Sessions Available")
+    
+    Good: "Cover Needed - Guitar Club - Mon 15 Jan"
+    Bad: "Cover Opportunity"
+  </Accordion>
+
+  <Accordion title="Personalize with Variables">
+    Always use {{first_name}} to address teachers personally. It increases engagement and makes messages feel less automated.
+    
+    Use {{cover_details}} when attaching covers—it auto-generates a formatted list of sessions with dates, times, and locations.
+  </Accordion>
+
+  <Accordion title="Choose Appropriate Channels">
+    - **Email only**: Newsletters, non-urgent updates, detailed information
+    - **WhatsApp only**: Urgent requests, time-sensitive notifications
+    - **Both**: Important announcements, cover requests needing quick response
+    
+    Consider teacher preferences and response patterns.
+  </Accordion>
+
+  <Accordion title="Filter Recipients Carefully">
+    Before sending:
+    - Use Primary Styles filter to match cover requirements (e.g., only Guitar teachers for guitar clubs)
+    - Remove blocked teachers (status filter)
+    - Check Selected sheet to verify recipient list
+    - Consider teacher availability/location if known
+  </Accordion>
+
+  <Accordion title="Keep Messages Concise">
+    Teachers are busy. Structure messages:
+    1. Greeting with {{first_name}}
+    2. Clear purpose (1-2 sentences)
+    3. Specific details or {{cover_details}}
+    4. Clear call-to-action
+    5. Sign-off
+    
+    Aim for under 150 words for cover requests.
+  </Accordion>
+
+  <Accordion title="Save Drafts">
+    Use "Save Draft" button during creation to preserve progress. Drafts can be resumed from the broadcast list.
+  </Accordion>
+</AccordionGroup>
+
+## Cover Availability Workflow
+
+The most common broadcast use case:
+
+<Steps>
+  <Step title="Identify Unassigned Covers">
+    Check the [Calendar](/features/cover-scheduling) for sessions without teacher assignments
+  </Step>
+  <Step title="Create Broadcast">
+    Go to Broadcasts → New Broadcast
+  </Step>
+  <Step title="Select Teachers">
+    - Filter by appropriate Primary Style (e.g., "Piano" for Piano Club)
+    - Select multiple teachers (cast a wide net)
+    - Aim for 5-10 recipients per cover
+  </Step>
+  <Step title="Choose Template">
+    Select "Cover Availability Request"
+  </Step>
+  <Step title="Attach Covers">
+    - Click "Add Unassigned Cover"
+    - Select the specific sessions needing teachers
+    - Covers show with date, time, location
+  </Step>
+  <Step title="Customize Message">
+    - Keep the template structure
+    - Add any special requirements or notes
+    - Include contact method for responses
+  </Step>
+  <Step title="Send">
+    Review and send immediately
+  </Step>
+  <Step title="Track Responses">
+    - Teachers reply via email/WhatsApp
+    - Assign first responders in [Calendar](/features/cover-scheduling)
+    - Update cover status to "Confirmed"
+  </Step>
+</Steps>
+
+## Variables Reference
+
+<ResponseField name="{{first_name}}" type="string">
+  Teacher's first name from person_details
+</ResponseField>
+
+<ResponseField name="{{last_name}}" type="string">
+  Teacher's last name from person_details
+</ResponseField>
+
+<ResponseField name="{{email}}" type="string">
+  Teacher's email address
+</ResponseField>
+
+<ResponseField name="{{subject}}" type="string">
+  The broadcast subject line (useful in body text for reference)
+</ResponseField>
+
+<ResponseField name="{{date_today}}" type="string">
+  Current date in format "Monday, 15 January 2025"
+</ResponseField>
+
+<ResponseField name="{{cover_details}}" type="string">
+  Auto-generated formatted list of attached covers with:
+  - Date (e.g., "Mon, 15 Jan 2025")
+  - Time (e.g., "3:00 PM - 4:00 PM")
+  - Location (e.g., "Riverside Academy - Chess Club")
+  - Notes (if any)
+  
+  Example output:
+  ```
+  • Mon, 15 Jan 2025, 3:00 PM - 4:00 PM
+    Riverside Academy - Chess Club
+  
+  • Wed, 17 Jan 2025, 4:00 PM - 5:30 PM
+    Oak School - Drama Club
+    Note: Need drama experience
+  ```
+</ResponseField>
+
+## Common Scenarios
+
+### Scenario: Weekly Cover Requests
+
+**Every Monday morning:**
+
+1. Open Calendar → Week View
+2. Note any unassigned covers for the week
+3. Go to Broadcasts → New Broadcast
+4. Select teachers by style matching the covers
+5. Template: "Cover Availability Request"
+6. Attach 3-5 covers for the week
+7. Subject: "Cover Opportunities - Week of {{date_today}}"
+8. Send to 10-15 teachers per cover
+9. Assign first responders throughout the day
+
+### Scenario: Urgent Last-Minute Cover
+
+**Teacher calls in sick:**
+
+1. Quick broadcast creation
+2. Select teachers with matching style + "Active" status
+3. Enable WhatsApp channel only (faster response)
+4. Subject: "URGENT - Cover Needed Today - 3 PM"
+5. Message: Brief, clear, emphasize urgency
+6. Attach single cover
+7. Send immediately
+8. Monitor responses on phone
+9. Assign first available teacher
+
+### Scenario: Monthly Newsletter
+
+**Start of each month:**
+
+1. Select all teachers (no filters)
+2. Template: "Monthly Newsletter"
+3. Update with current month's content:
+   - New clubs/programs
+   - Schedule changes
+   - Training opportunities
+   - Reminders
+4. Enable Email channel only
+5. Send during working hours
+
+## Stepper Navigation
+
+The broadcast creation interface includes a visual stepper at the top:
+
+```
+1. Audience  →  2. Compose  →  3. Review
+   [Active]        [Inactive]      [Inactive]
+```
+
+- **Current step**: Highlighted with color
+- **Completed steps**: Checkmark icon
+- **Future steps**: Greyed out
+- **Click to navigate**: Return to previous steps to edit
+
+<Info>
+  You can navigate back to previous steps to modify audience or message, but you must proceed through the flow sequentially (can't skip to Review without completing Compose).
+</Info>
+
+## Related Features
+
+<CardGroup cols={3}>
+  <Card title="Teachers" icon="chalkboard-user" href="/features/teachers">
+    Manage teacher profiles and contact information
+  </Card>
+  <Card title="Cover Scheduling" icon="calendar" href="/features/cover-scheduling">
+    View unassigned covers and assign responding teachers
+  </Card>
+  <Card title="Clubs" icon="users" href="/features/clubs">
+    Understand which clubs need specific teaching styles
+  </Card>
+</CardGroup>

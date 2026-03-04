@@ -1,0 +1,948 @@
+---
+title: React Query Hooks Reference
+description: Data fetching and mutation hooks for ClubConnect UK
+---
+
+## Overview
+
+ClubConnect UK uses `@tanstack/react-query` for efficient data fetching, caching, and state management. All hooks are organized by feature domain.
+
+## Installation
+
+React Query is already configured in the project. To use hooks:
+
+```typescript
+import { useQuery, useMutation } from '@tanstack/react-query'
+import { supabase } from '@/services/supabase'
+```
+
+## Schools
+
+### useSchools
+
+Fetches all active schools.
+
+```typescript
+import { useSchools } from '@/hooks/use-schools'
+
+function SchoolsList() {
+  const { data: schools, isLoading, error } = useSchools()
+  
+  if (isLoading) return <div>Loading...</div>
+  if (error) return <div>Error: {error.message}</div>
+  
+  return (
+    <ul>
+      {schools?.map(school => (
+        <li key={school.id}>{school.school_name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ResponseField name="data" type="Array<School>">
+  Array of active schools ordered by name
+</ResponseField>
+
+<ResponseField name="isLoading" type="boolean">
+  True while fetching data
+</ResponseField>
+
+<ResponseField name="error" type="Error | null">
+  Error object if query fails
+</ResponseField>
+
+**Query Key**: `['schools']`
+
+**Filters**: Only returns schools with `status = 'active'`
+
+**Sorting**: Ordered by `school_name` ascending
+
+## Clubs
+
+### useClubs
+
+Fetches all clubs with their associated school information.
+
+```typescript
+import { useClubs } from '@/hooks/use-clubs'
+
+function ClubsList() {
+  const { data: clubs, isLoading } = useClubs()
+  
+  return (
+    <ul>
+      {clubs?.map(club => (
+        <li key={club.id}>
+          {club.club_name} at {club.school?.school_name}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ResponseField name="data" type="Array<Club>">
+  Array of clubs with nested school data
+</ResponseField>
+
+**Query Key**: `['clubs']`
+
+**Includes**: Nested `school` object with school details
+
+**Sorting**: Ordered by `club_name` ascending
+
+---
+
+### useClubsBySchool
+
+Fetches clubs for a specific school.
+
+```typescript
+import { useClubsBySchool } from '@/hooks/use-clubs'
+
+function SchoolClubs({ schoolId }: { schoolId: string }) {
+  const { data: clubs } = useClubsBySchool(schoolId)
+  
+  return <div>{clubs?.length} clubs</div>
+}
+```
+
+<ParamField path="schoolId" type="string" required>
+  UUID of the school
+</ParamField>
+
+<ResponseField name="data" type="Array<Club>">
+  Clubs belonging to the specified school
+</ResponseField>
+
+**Query Key**: `['clubs', 'school', schoolId]`
+
+**Enabled**: Only runs when `schoolId` is provided
+
+---
+
+### useClub
+
+Fetches a single club by ID.
+
+```typescript
+import { useClub } from '@/hooks/use-clubs'
+
+function ClubDetails({ clubId }: { clubId: string }) {
+  const { data: club, isLoading } = useClub(clubId)
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div>
+      <h1>{club?.club_name}</h1>
+      <p>{club?.description}</p>
+      <p>{club?.members_count} members</p>
+    </div>
+  )
+}
+```
+
+<ParamField path="clubId" type="string" required>
+  UUID of the club
+</ParamField>
+
+<ResponseField name="data" type="Club">
+  Single club object with nested school data
+</ResponseField>
+
+**Query Key**: `['clubs', clubId]`
+
+---
+
+### useClubCoverRules
+
+Fetches cover rules for a specific club.
+
+```typescript
+import { useClubCoverRules } from '@/hooks/use-clubs'
+
+function ClubSchedule({ clubId }: { clubId: string }) {
+  const { data: rules } = useClubCoverRules(clubId)
+  
+  return (
+    <ul>
+      {rules?.map(rule => (
+        <li key={rule.id}>
+          {rule.day_of_week} {rule.start_time} - {rule.end_time}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ParamField path="clubId" type="string" required>
+  UUID of the club
+</ParamField>
+
+<ResponseField name="data" type="Array<CoverRule>">
+  Cover rules for the club
+</ResponseField>
+
+**Query Key**: `['cover_rules', 'club', clubId]`
+
+**Sorting**: Ordered by `day_of_week`
+
+---
+
+### useClubUpcomingMeetings
+
+Fetches upcoming cover occurrences for a club.
+
+```typescript
+import { useClubUpcomingMeetings } from '@/hooks/use-clubs'
+
+function UpcomingMeetings({ clubId }: { clubId: string }) {
+  const { data: meetings } = useClubUpcomingMeetings(clubId)
+  
+  return (
+    <ul>
+      {meetings?.map(meeting => (
+        <li key={meeting.id}>
+          {new Date(meeting.meeting_date).toLocaleDateString()}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ParamField path="clubId" type="string" required>
+  UUID of the club
+</ParamField>
+
+<ResponseField name="data" type="Array<CoverOccurrence>">
+  Upcoming occurrences with nested cover rule data
+</ResponseField>
+
+**Query Key**: `['cover_occurrences', 'club', clubId]`
+
+**Filters**: Only future meetings (meeting_date >= today)
+
+**Limit**: Returns maximum 10 meetings
+
+## Club Mutations
+
+### useCreateClub
+
+Creates a new club.
+
+```typescript
+import { useCreateClub } from '@/features/clubs/api/mutations'
+
+function CreateClubForm() {
+  const createClub = useCreateClub()
+  
+  const handleSubmit = async (formData: any) => {
+    try {
+      const newClub = await createClub.mutateAsync({
+        club_name: formData.name,
+        club_code: formData.code,
+        school_id: formData.schoolId,
+        description: formData.description,
+        status: 'active'
+      })
+      console.log('Created:', newClub)
+    } catch (error) {
+      console.error('Failed to create club:', error)
+    }
+  }
+  
+  return <form onSubmit={handleSubmit}>...</form>
+}
+```
+
+<ParamField path="club_name" type="string" required>
+  Name of the club
+</ParamField>
+
+<ParamField path="club_code" type="string" required>
+  Short identifier code
+</ParamField>
+
+<ParamField path="school_id" type="string" required>
+  UUID of the school
+</ParamField>
+
+<ParamField path="description" type="string">
+  Club description
+</ParamField>
+
+<ParamField path="status" type="ClubStatus">
+  Initial status (default: 'active')
+</ParamField>
+
+<ResponseField name="data" type="Club">
+  Created club object
+</ResponseField>
+
+**Invalidates**: `['clubs']`
+
+---
+
+### useUpdateClub
+
+Updates an existing club.
+
+```typescript
+import { useUpdateClub } from '@/features/clubs/api/mutations'
+
+function EditClubForm({ club }: { club: Club }) {
+  const updateClub = useUpdateClub()
+  
+  const handleUpdate = async (updates: Partial<Club>) => {
+    await updateClub.mutateAsync({
+      id: club.id,
+      ...updates
+    })
+  }
+  
+  return <form>...</form>
+}
+```
+
+<ParamField path="id" type="string" required>
+  UUID of the club to update
+</ParamField>
+
+<ParamField path="...updates" type="Partial<Club>">
+  Fields to update (club_name, description, status, etc.)
+</ParamField>
+
+**Invalidates**: `['clubs']`, `['clubs', clubId]`
+
+---
+
+### useDeleteClub
+
+Deletes a club.
+
+```typescript
+import { useDeleteClub } from '@/features/clubs/api/mutations'
+
+function DeleteClubButton({ clubId }: { clubId: string }) {
+  const deleteClub = useDeleteClub()
+  
+  const handleDelete = async () => {
+    if (confirm('Delete this club?')) {
+      await deleteClub.mutateAsync(clubId)
+    }
+  }
+  
+  return <button onClick={handleDelete}>Delete</button>
+}
+```
+
+<ParamField path="clubId" type="string" required>
+  UUID of the club to delete
+</ParamField>
+
+**Invalidates**: `['clubs']`
+
+**Cascade**: Deletes associated cover rules and occurrences
+
+## Teachers
+
+### useTeachers
+
+Fetches all teachers with their person details.
+
+```typescript
+import useTeachers from '@/hooks/use-teachers'
+
+function TeachersList() {
+  const { data: teachers, isLoading } = useTeachers()
+  
+  return (
+    <ul>
+      {teachers?.map(teacher => (
+        <li key={teacher.id}>
+          {teacher.person_details.first_name} {teacher.person_details.last_name}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ResponseField name="data" type="Array<Teacher>">
+  Array of teachers with nested person_details
+</ResponseField>
+
+**Query Key**: `['teachers']`
+
+**Includes**: Full person details (name, email, contact, etc.)
+
+## Teacher Mutations
+
+### useCreateTeacher
+
+Creates a new teacher with person details.
+
+```typescript
+import { useCreateTeacher } from '@/features/teachers/api/mutations'
+
+function CreateTeacherForm() {
+  const createTeacher = useCreateTeacher()
+  
+  const handleSubmit = async (formData: any) => {
+    const newTeacher = await createTeacher.mutateAsync({
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      contact: formData.phone,
+      primary_styles: formData.primaryStyles,
+      general_notes: formData.notes
+    })
+  }
+  
+  return <form onSubmit={handleSubmit}>...</form>
+}
+```
+
+<ParamField path="first_name" type="string" required>
+  Teacher's first name
+</ParamField>
+
+<ParamField path="last_name" type="string" required>
+  Teacher's last name
+</ParamField>
+
+<ParamField path="email" type="string">
+  Email address
+</ParamField>
+
+<ParamField path="contact" type="string">
+  Phone number
+</ParamField>
+
+<ParamField path="primary_styles" type="string">
+  Teaching styles or specializations
+</ParamField>
+
+<ParamField path="general_notes" type="string">
+  Administrative notes
+</ParamField>
+
+<ResponseField name="data" type="Teacher">
+  Created teacher with nested person details
+</ResponseField>
+
+**Transactions**: Creates both person_details and teachers records
+
+**Rollback**: Deletes person_details if teacher creation fails
+
+**Invalidates**: `['teachers']`
+
+---
+
+### useUpdateTeacher
+
+Updates teacher and person details.
+
+```typescript
+import { useUpdateTeacher } from '@/features/teachers/api/mutations'
+
+function EditTeacherForm({ teacher }: { teacher: Teacher }) {
+  const updateTeacher = useUpdateTeacher()
+  
+  const handleUpdate = async (updates: any) => {
+    await updateTeacher.mutateAsync({
+      id: teacher.id,
+      persons_details_id: teacher.persons_details_id,
+      first_name: updates.firstName,
+      email: updates.email,
+      primary_styles: updates.primaryStyles
+    })
+  }
+  
+  return <form>...</form>
+}
+```
+
+<ParamField path="id" type="string" required>
+  Teacher UUID
+</ParamField>
+
+<ParamField path="persons_details_id" type="string" required>
+  Person details UUID
+</ParamField>
+
+<ParamField path="...updates" type="Partial<Teacher & PersonDetails>">
+  Fields to update (can include both teacher and person fields)
+</ParamField>
+
+**Invalidates**: `['teachers']`, `['teachers', teacherId]`
+
+---
+
+### useDeleteTeacher
+
+Deletes a teacher and their person details.
+
+```typescript
+import { useDeleteTeacher } from '@/features/teachers/api/mutations'
+
+function DeleteTeacherButton({ teacher }: { teacher: Teacher }) {
+  const deleteTeacher = useDeleteTeacher()
+  
+  const handleDelete = async () => {
+    await deleteTeacher.mutateAsync({
+      teacherId: teacher.id,
+      personsDetailsId: teacher.persons_details_id
+    })
+  }
+  
+  return <button onClick={handleDelete}>Delete</button>
+}
+```
+
+<ParamField path="teacherId" type="string" required>
+  Teacher UUID
+</ParamField>
+
+<ParamField path="personsDetailsId" type="string" required>
+  Person details UUID
+</ParamField>
+
+**Cascade**: Deletes teacher record first, then person_details
+
+**Invalidates**: `['teachers']`
+
+---
+
+### useToggleTeacherBlock
+
+Blocks or unblocks a teacher.
+
+```typescript
+import { useToggleTeacherBlock } from '@/features/teachers/api/mutations'
+
+function BlockTeacherButton({ teacher }: { teacher: Teacher }) {
+  const toggleBlock = useToggleTeacherBlock()
+  
+  const handleToggle = async () => {
+    await toggleBlock.mutateAsync({
+      teacherId: teacher.id,
+      isBlocked: !teacher.is_blocked
+    })
+  }
+  
+  return (
+    <button onClick={handleToggle}>
+      {teacher.is_blocked ? 'Unblock' : 'Block'}
+    </button>
+  )
+}
+```
+
+<ParamField path="teacherId" type="string" required>
+  Teacher UUID
+</ParamField>
+
+<ParamField path="isBlocked" type="boolean" required>
+  New blocked status
+</ParamField>
+
+**Invalidates**: `['teachers']`, `['teachers', teacherId]`
+
+## Cover Occurrences
+
+### useCoverOccurrences
+
+Fetches cover occurrences with flexible filtering.
+
+```typescript
+import { useCoverOccurrences } from '@/hooks/use-covers'
+
+function Calendar() {
+  const { data: occurrences } = useCoverOccurrences({
+    schoolId: 'uuid-here',
+    startDate: '2026-03-01',
+    endDate: '2026-03-31'
+  })
+  
+  return (
+    <div>
+      {occurrences?.map(occ => (
+        <div key={occ.id}>
+          {occ.cover_rule?.club?.club_name} on {occ.meeting_date}
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+<ParamField path="schoolId" type="string">
+  Filter by school UUID (use 'all' for all schools)
+</ParamField>
+
+<ParamField path="startDate" type="string">
+  ISO date string for range start
+</ParamField>
+
+<ParamField path="endDate" type="string">
+  ISO date string for range end
+</ParamField>
+
+<ResponseField name="data" type="Array<CoverOccurrence>">
+  Occurrences with nested cover_rule, club, school, and assignments
+</ResponseField>
+
+**Query Key**: `['cover_occurrences', { schoolId, startDate, endDate }]`
+
+**Includes**: Full nested data for cover rules, clubs, schools, teachers, and person details
+
+---
+
+### useAvailableCovers
+
+Fetches upcoming cover occurrences.
+
+```typescript
+import { useAvailableCovers } from '@/features/covers/api/queries'
+
+function AvailableCovers() {
+  const { data: covers } = useAvailableCovers()
+  
+  return (
+    <ul>
+      {covers?.map(cover => (
+        <li key={cover.id}>
+          {cover.cover_rule?.club?.club_name} - {cover.meeting_date}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ResponseField name="data" type="Array<CoverOccurrence>">
+  Upcoming occurrences (from today onwards)
+</ResponseField>
+
+**Query Key**: `['available-covers']`
+
+**Filters**: `meeting_date >= today`
+
+**Limit**: 50 records
+
+## Cover Mutations
+
+### useCreateFullCoverRequest
+
+Creates cover rule and generates occurrences.
+
+```typescript
+import { useCreateFullCoverRequest } from '@/features/covers/api/mutations'
+
+function CreateCoverForm() {
+  const createCover = useCreateFullCoverRequest()
+  
+  const handleSubmit = async (formData: any) => {
+    const result = await createCover.mutateAsync({
+      school_id: formData.schoolId,
+      club_id: formData.clubId,
+      frequency: 'weekly',
+      day_of_occurence: 1, // Monday
+      start_time: '15:00:00',
+      end_time: '16:30:00',
+      meeting_date: '2026-03-10',
+      teacher_id: formData.teacherId,
+      request_type: 'recurring',
+      occurrences: 10,
+      priority: 'medium'
+    })
+  }
+  
+  return <form onSubmit={handleSubmit}>...</form>
+}
+```
+
+<ParamField path="school_id" type="string" required>
+  School UUID
+</ParamField>
+
+<ParamField path="club_id" type="string" required>
+  Club UUID
+</ParamField>
+
+<ParamField path="frequency" type="CoverFrequency" required>
+  Recurrence pattern: 'weekly', 'bi-weekly', or 'monthly'
+</ParamField>
+
+<ParamField path="day_of_occurence" type="number" required>
+  Day of week (0=Sunday, 1=Monday, etc.)
+</ParamField>
+
+<ParamField path="start_time" type="string" required>
+  Start time (format: 'HH:MM:SS')
+</ParamField>
+
+<ParamField path="end_time" type="string" required>
+  End time (format: 'HH:MM:SS')
+</ParamField>
+
+<ParamField path="meeting_date" type="string" required>
+  First occurrence date (ISO format)
+</ParamField>
+
+<ParamField path="teacher_id" type="string">
+  Optional teacher assignment
+</ParamField>
+
+<ParamField path="request_type" type="'one-off' | 'recurring'">
+  Type of request (default: 'one-off')
+</ParamField>
+
+<ParamField path="occurrences" type="number">
+  Number of occurrences to generate (for recurring)
+</ParamField>
+
+<ResponseField name="rule" type="CoverRule">
+  Created cover rule
+</ResponseField>
+
+<ResponseField name="occurrences" type="Array<CoverOccurrence>">
+  Generated occurrences
+</ResponseField>
+
+**Invalidates**: `['cover_rules']`, `['cover_occurrences']`
+
+---
+
+### useDeleteCoverOccurrence
+
+Deletes a single occurrence.
+
+```typescript
+import { useDeleteCoverOccurrence } from '@/features/covers/api/mutations'
+
+function DeleteOccurrenceButton({ occurrenceId }: { occurrenceId: string }) {
+  const deleteCover = useDeleteCoverOccurrence()
+  
+  return (
+    <button onClick={() => deleteCover.mutate(occurrenceId)}>
+      Delete
+    </button>
+  )
+}
+```
+
+<ParamField path="occurrenceId" type="string" required>
+  Occurrence UUID
+</ParamField>
+
+**Invalidates**: `['cover_occurrences']`
+
+---
+
+### useMoveCoverOccurrence
+
+Moves an occurrence to a new date.
+
+```typescript
+import { useMoveCoverOccurrence } from '@/features/covers/api/mutations'
+
+function MoveOccurrence({ occurrence }: { occurrence: CoverOccurrence }) {
+  const moveCover = useMoveCoverOccurrence()
+  
+  const handleMove = async (newDate: string) => {
+    await moveCover.mutateAsync({
+      id: occurrence.id,
+      newDate: newDate
+    })
+  }
+  
+  return <DatePicker onChange={handleMove} />
+}
+```
+
+<ParamField path="id" type="string" required>
+  Occurrence UUID
+</ParamField>
+
+<ParamField path="newDate" type="string" required>
+  New date (ISO format)
+</ParamField>
+
+**Invalidates**: `['cover_occurrences']`, `['cover-occurrence']`
+
+## Dashboard
+
+### useDashboardStats
+
+Fetches dashboard statistics.
+
+```typescript
+import { useDashboardStats } from '@/features/dashboard/api/queries'
+
+function DashboardStats() {
+  const { data: stats } = useDashboardStats()
+  
+  return (
+    <div>
+      <div>Total Clubs: {stats?.totalClubs}</div>
+      <div>Open Covers: {stats?.openCovers}</div>
+      <div>Active Teachers: {stats?.activeTeachers}</div>
+      <div>Success Rate: {stats?.messageSuccessRate}</div>
+    </div>
+  )
+}
+```
+
+<ResponseField name="totalClubs" type="number">
+  Total number of clubs
+</ResponseField>
+
+<ResponseField name="openCovers" type="number">
+  Pending or invited assignments
+</ResponseField>
+
+<ResponseField name="activeTeachers" type="number">
+  Non-blocked teachers
+</ResponseField>
+
+<ResponseField name="messageSuccessRate" type="string">
+  Percentage of successfully delivered messages
+</ResponseField>
+
+**Query Key**: `['dashboard-stats']`
+
+**Stale Time**: 5 minutes
+
+---
+
+### useUpcomingAgenda
+
+Fetches next 7 days of cover occurrences.
+
+```typescript
+import { useUpcomingAgenda } from '@/features/dashboard/api/queries'
+
+function UpcomingAgenda() {
+  const { data: agenda } = useUpcomingAgenda()
+  
+  return (
+    <ul>
+      {agenda?.map(occurrence => (
+        <li key={occurrence.id}>
+          {occurrence.cover_rule?.club?.club_name} - {occurrence.meeting_date}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ResponseField name="data" type="Array<CoverOccurrence>">
+  Upcoming occurrences with club and teacher assignment details
+</ResponseField>
+
+**Query Key**: `['upcoming-agenda']`
+
+**Stale Time**: 2 minutes
+
+**Limit**: 10 records
+
+## Broadcasts
+
+### useBroadcasts
+
+Fetches all broadcasts.
+
+```typescript
+import { useBroadcasts } from '@/features/broadcast/hooks/use-broadcasts'
+
+function BroadcastsList() {
+  const { data: broadcasts } = useBroadcasts()
+  
+  return (
+    <ul>
+      {broadcasts?.map(broadcast => (
+        <li key={broadcast.id}>
+          {broadcast.subject} - {broadcast.status}
+        </li>
+      ))}
+    </ul>
+  )
+}
+```
+
+<ResponseField name="data" type="Array<Broadcast>">
+  Broadcasts ordered by creation date (newest first)
+</ResponseField>
+
+**Query Key**: `['broadcasts']`
+
+---
+
+### useSendBroadcast
+
+Sends a broadcast message to multiple teachers.
+
+```typescript
+import { useSendBroadcast } from '@/features/broadcast/hooks/use-broadcasts'
+
+function SendBroadcastForm() {
+  const sendBroadcast = useSendBroadcast()
+  
+  const handleSend = async (formData: any) => {
+    await sendBroadcast.mutateAsync({
+      subject: formData.subject,
+      message: formData.message,
+      teacherIds: formData.selectedTeachers,
+      coverIds: formData.relatedCovers
+    })
+  }
+  
+  return <form onSubmit={handleSend}>...</form>
+}
+```
+
+<ParamField path="subject" type="string" required>
+  Email subject line
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  Message body
+</ParamField>
+
+<ParamField path="teacherIds" type="Array<string>" required>
+  UUIDs of recipient teachers
+</ParamField>
+
+<ParamField path="coverIds" type="Array<string>">
+  Related cover occurrence IDs
+</ParamField>
+
+## Query Invalidation
+
+After mutations, React Query automatically refetches related data. Common invalidation patterns:
+
+```typescript
+import { useQueryClient } from '@tanstack/react-query'
+
+function MyComponent() {
+  const queryClient = useQueryClient()
+  
+  // Invalidate all clubs queries
+  queryClient.invalidateQueries({ queryKey: ['clubs'] })
+  
+  // Invalidate specific club
+  queryClient.invalidateQueries({ queryKey: ['clubs', clubId] })
+  
+  // Invalidate multiple query keys
+  queryClient.invalidateQueries({ queryKey: ['cover_occurrences'] })
+  queryClient.invalidateQueries({ queryKey: ['teachers'] })
+}
+```

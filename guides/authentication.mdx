@@ -1,0 +1,452 @@
+---
+title: Authentication
+description: Learn how to implement and manage authentication in ClubConnect UK using Supabase Auth
+---
+
+## Overview
+
+ClubConnect UK uses **Supabase Authentication** to provide secure user authentication with email/password login. The authentication system is built with TanStack Store for state management and TanStack Router for protected routes.
+
+## Supabase Auth Setup
+
+### Configuration
+
+The Supabase client is configured in `src/services/supabase.ts`:
+
+```typescript src/services/supabase.ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabase = createClient(supabaseUrl || '', supabaseAnonKey || '', {
+  auth: {
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+  },
+})
+```
+
+### Environment Variables
+
+Add these environment variables to your `.env` file:
+
+```bash .env
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
+
+<Note>
+  Get your Supabase credentials from your [Supabase Dashboard](https://app.supabase.com) → Project Settings → API
+</Note>
+
+## Authentication Store
+
+The auth state is managed using TanStack Store in `src/features/auth/store.ts`:
+
+### Store Definition
+
+```typescript src/features/auth/store.ts
+import { Store } from '@tanstack/store'
+import type { User } from '@supabase/supabase-js'
+import { supabase } from '@/services/supabase'
+
+const initialState: AuthState = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: true,
+}
+
+export const authStore = new Store<AuthState>(initialState)
+```
+
+### Initialize Authentication
+
+Authentication is initialized in the root route (`src/routes/__root.tsx`):
+
+```typescript src/routes/__root.tsx
+import { initializeAuth } from '@/features/auth/store'
+
+function RootDocument() {
+  useEffect(() => {
+    initializeAuth()
+  }, [])
+
+  return (
+    <html lang="en">
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <ProgressBar />
+        <Outlet />
+        <Scripts />
+      </body>
+    </html>
+  )
+}
+```
+
+### Auth State Management Functions
+
+#### Initialize Auth
+
+```typescript src/features/auth/store.ts
+export async function initializeAuth() {
+  try {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    authStore.setState(() => ({
+      user: session?.user ?? null,
+      isAuthenticated: !!session?.user,
+      isLoading: false,
+    }))
+
+    supabase.auth.onAuthStateChange((_event: any, newSession: any) => {
+      authStore.setState(() => ({
+        user: newSession?.user ?? null,
+        isAuthenticated: !!newSession?.user,
+        isLoading: false,
+      }))
+    })
+  } catch (error) {
+    console.error('Failed to initialize auth:', error)
+    authStore.setState(() => ({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    }))
+  }
+}
+```
+
+#### Login Function
+
+```typescript src/features/auth/store.ts
+export async function login(
+  credentials: LoginCredentials,
+): Promise<{ error?: AuthError }> {
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: credentials.email,
+      password: credentials.password,
+    })
+
+    if (error) {
+      return { error: { message: error.message, code: error.code } }
+    }
+
+    authStore.setState(() => ({
+      user: data.user,
+      isAuthenticated: true,
+      isLoading: false,
+    }))
+
+    return {}
+  } catch (error) {
+    return {
+      error: {
+        message:
+          error instanceof Error ? error.message : 'An unknown error occurred',
+      },
+    }
+  }
+}
+```
+
+#### Logout Function
+
+```typescript src/features/auth/store.ts
+export async function logout(): Promise<{ error?: AuthError }> {
+  try {
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      return { error: { message: error.message } }
+    }
+
+    authStore.setState(() => ({
+      user: null,
+      isAuthenticated: false,
+      isLoading: false,
+    }))
+
+    return {}
+  } catch (error) {
+    return {
+      error: {
+        message:
+          error instanceof Error ? error.message : 'An unknown error occurred',
+      },
+    }
+  }
+}
+```
+
+## Login Flow
+
+The login page is implemented in `src/routes/index.tsx`:
+
+```typescript src/routes/index.tsx
+import { createFileRoute, useRouter } from '@tanstack/react-router'
+import { useAuth } from '@/hooks/use-auth'
+
+function LoginPage() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const { login, isAuthenticated } = useAuth()
+  const router = useRouter()
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.navigate({ to: '/dashboard' })
+    }
+  }, [isAuthenticated, router])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
+
+    try {
+      const result = await login({ email, password })
+
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        router.navigate({ to: '/dashboard' })
+      }
+    } catch (err) {
+      setError('An unexpected error occurred')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields */}
+    </form>
+  )
+}
+```
+
+## Protected Routes
+
+Protected routes are implemented using TanStack Router's `beforeLoad` hook in `src/routes/_protected.tsx`:
+
+```typescript src/routes/_protected.tsx
+import { Outlet, createFileRoute, redirect } from '@tanstack/react-router'
+import { ProtectedLayout } from '@/components/common/protected-layout'
+import { authStore } from '@/features/auth/store'
+
+export const Route = createFileRoute('/_protected')({
+  beforeLoad: () => {
+    const { isAuthenticated, isLoading } = authStore.state
+
+    if (!isLoading && !isAuthenticated) {
+      throw redirect({
+        to: '/',
+        search: {
+          redirect: location.href,
+        },
+      })
+    }
+  },
+  component: ProtectedRoute,
+})
+
+function ProtectedRoute() {
+  return (
+    <ProtectedLayout>
+      <Outlet />
+    </ProtectedLayout>
+  )
+}
+```
+
+### Protected Route Structure
+
+All routes under `_protected` are automatically protected:
+
+```
+src/routes/
+├── index.tsx              # Login page (public)
+├── _protected.tsx         # Protected layout route
+└── _protected/
+    ├── dashboard.tsx      # Protected
+    ├── clubs/
+    │   ├── club-list.tsx  # Protected
+    │   └── $clubId.tsx    # Protected
+    ├── teachers/
+    │   └── teacher-list.tsx # Protected
+    └── settings.tsx       # Protected
+```
+
+<Tip>
+  Any route placed inside the `_protected` directory will require authentication
+</Tip>
+
+## Auth Hook
+
+The `useAuth` hook provides easy access to auth state and functions:
+
+```typescript src/hooks/use-auth.tsx
+import { useStore } from '@tanstack/react-store'
+import type { LoginCredentials } from '@/features/auth/types'
+import { authStore, login, logout } from '@/features/auth/store'
+
+export function useAuth() {
+  const authState = useStore(authStore)
+
+  return {
+    user: authState.user,
+    isAuthenticated: authState.isAuthenticated,
+    isLoading: authState.isLoading,
+    login: (credentials: LoginCredentials) => login(credentials),
+    logout: () => logout(),
+  }
+}
+```
+
+### Using the Hook
+
+```typescript
+import { useAuth } from '@/hooks/use-auth'
+
+function MyComponent() {
+  const { user, isAuthenticated, logout } = useAuth()
+
+  if (!isAuthenticated) {
+    return <div>Please log in</div>
+  }
+
+  return (
+    <div>
+      <p>Welcome, {user?.email}</p>
+      <button onClick={logout}>Logout</button>
+    </div>
+  )
+}
+```
+
+## Session Management
+
+### Auto-Refresh Tokens
+
+Supabase automatically refreshes auth tokens when configured with `autoRefreshToken: true`.
+
+### Persist Session
+
+Sessions are persisted to localStorage with `persistSession: true`, allowing users to remain logged in across browser sessions.
+
+### Auth State Changes
+
+The `onAuthStateChange` listener automatically updates the auth store when:
+- User logs in
+- User logs out
+- Token is refreshed
+- Session expires
+
+```typescript
+supabase.auth.onAuthStateChange((_event: any, newSession: any) => {
+  authStore.setState(() => ({
+    user: newSession?.user ?? null,
+    isAuthenticated: !!newSession?.user,
+    isLoading: false,
+  }))
+})
+```
+
+## Type Definitions
+
+Auth types are defined in `src/features/auth/types.ts`:
+
+```typescript src/features/auth/types.ts
+import type { User } from '@supabase/supabase-js'
+
+export interface AuthState {
+  user: User | null
+  isAuthenticated: boolean
+  isLoading: boolean
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+  rememberMe?: boolean
+}
+
+export interface AuthError {
+  message: string
+  code?: string
+}
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Check Loading State" icon="spinner">
+    Always check `isLoading` before checking `isAuthenticated` to avoid flashing wrong content
+  </Card>
+  <Card title="Handle Errors" icon="triangle-exclamation">
+    Display user-friendly error messages from auth operations
+  </Card>
+  <Card title="Secure Routes" icon="lock">
+    Use the `_protected` directory for all authenticated routes
+  </Card>
+  <Card title="Store Tokens Safely" icon="shield-halved">
+    Never expose Supabase keys in client code; use environment variables
+  </Card>
+</CardGroup>
+
+## Testing Authentication
+
+### Creating Test Users
+
+1. Go to [Supabase Dashboard](https://app.supabase.com)
+2. Navigate to **Authentication** → **Users**
+3. Click **Add User** → **Create new user**
+4. Enter email and password
+5. User can now log in to your app
+
+<Warning>
+  Make sure to enable email confirmations in your Supabase project settings for production
+</Warning>
+
+## Troubleshooting
+
+### User Not Redirecting After Login
+
+Ensure `initializeAuth()` is called in the root component before routing:
+
+```typescript
+useEffect(() => {
+  initializeAuth()
+}, [])
+```
+
+### Session Not Persisting
+
+Check that `persistSession: true` is set in the Supabase client configuration.
+
+### Infinite Redirect Loop
+
+Make sure the login page (`/`) is not under the `_protected` directory.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Database Schema" icon="database" href="/guides/database-schema">
+    Learn about the database structure and relationships
+  </Card>
+  <Card title="Deployment" icon="rocket" href="/guides/deployment">
+    Deploy your application to production
+  </Card>
+</CardGroup>

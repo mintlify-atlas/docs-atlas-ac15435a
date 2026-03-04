@@ -1,0 +1,567 @@
+---
+title: Database Tables Reference
+description: Detailed schema documentation for all database tables
+---
+
+## person_details
+
+Stores personal information for individuals (teachers, staff, etc.)
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated using `gen_random_uuid()`
+</ParamField>
+
+<ParamField path="first_name" type="VARCHAR(255)" required>
+  Individual's first name
+</ParamField>
+
+<ParamField path="middle_name" type="VARCHAR(255)">
+  Optional middle name
+</ParamField>
+
+<ParamField path="last_name" type="VARCHAR(255)" required>
+  Individual's last name
+</ParamField>
+
+<ParamField path="email" type="VARCHAR(255)">
+  Email address for contact
+</ParamField>
+
+<ParamField path="address" type="TEXT">
+  Physical address
+</ParamField>
+
+<ParamField path="contact" type="VARCHAR(100)">
+  Phone number or other contact method
+</ParamField>
+
+<ParamField path="image" type="TEXT">
+  URL or path to profile image
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp (auto-updated via trigger)
+</ParamField>
+
+### Indexes
+
+- `idx_person_details_last_name` - Index on `last_name` for efficient name lookups
+
+### Triggers
+
+- `on_person_details_updated` - Automatically updates `updated_at` timestamp
+
+---
+
+## schools
+
+Represents educational institutions using ClubConnect
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="school_name" type="VARCHAR(255)" required>
+  Official name of the school
+</ParamField>
+
+<ParamField path="address" type="TEXT">
+  School's physical address
+</ParamField>
+
+<ParamField path="status" type="school_status" default="'active'">
+  Current status: `active`, `inactive`, or `pending`
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_schools_status` - Index on `status` for filtering active schools
+
+### Relationships
+
+- Has many `clubs` (via `clubs.school_id`)
+- Has many `cover_rules` (via `cover_rules.school_id`)
+
+---
+
+## clubs
+
+After-school clubs and activities
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="school_id" type="UUID" required>
+  Foreign key to `schools.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="club_name" type="VARCHAR(255)" required>
+  Name of the club or activity
+</ParamField>
+
+<ParamField path="club_code" type="VARCHAR(50)" required>
+  Short code or identifier for the club
+</ParamField>
+
+<ParamField path="description" type="TEXT">
+  Purpose or description of the club (added in migration 20251224)
+</ParamField>
+
+<ParamField path="members_count" type="INTEGER" default="0">
+  Manually tracked member count (added in migration 20251224)
+</ParamField>
+
+<ParamField path="status" type="cover_status" default="'active'">
+  Active status: `active`, `inactive`, or `cancelled` (added in migration 20251224)
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_clubs_school_id` - Index on `school_id` for school-specific queries
+- `idx_clubs_status` - Index on `status` for filtering
+
+### Relationships
+
+- Belongs to `schools` (via `school_id`)
+- Has many `cover_rules` (via `cover_rules.club_id`)
+
+---
+
+## teachers
+
+Teaching staff who can be assigned to cover clubs
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="persons_details_id" type="UUID" required>
+  Foreign key to `person_details.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="documents_id" type="UUID">
+  Optional foreign key for primary document association
+</ParamField>
+
+<ParamField path="primary_styles" type="VARCHAR(255)">
+  Primary teaching styles or specializations
+</ParamField>
+
+<ParamField path="secondary_styles" type="VARCHAR(255)">
+  Secondary teaching styles or interests
+</ParamField>
+
+<ParamField path="general_notes" type="TEXT">
+  Administrative notes about the teacher
+</ParamField>
+
+<ParamField path="is_blocked" type="BOOLEAN" default="false">
+  Whether the teacher is blocked from assignments
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_teachers_person_id` - Index on `persons_details_id`
+
+### Relationships
+
+- References `person_details` (via `persons_details_id`)
+- Has many `teacher_cover_assignments`
+- Has many `documents` through `teacher_documents`
+
+---
+
+## cover_rules
+
+Defines recurring patterns for club sessions
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="school_id" type="UUID" required>
+  Foreign key to `schools.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="club_id" type="UUID" required>
+  Foreign key to `clubs.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="frequency" type="frequency_type" default="'weekly'">
+  Recurrence pattern: `weekly`, `bi-weekly`, or `monthly`
+</ParamField>
+
+<ParamField path="day_of_week" type="day_of_week" required>
+  Day the session occurs: `monday`, `tuesday`, `wednesday`, `thursday`, `friday`, `saturday`, `sunday`
+</ParamField>
+
+<ParamField path="start_time" type="TIME" required>
+  Session start time
+</ParamField>
+
+<ParamField path="end_time" type="TIME" required>
+  Session end time
+</ParamField>
+
+<ParamField path="status" type="cover_status" default="'active'">
+  Rule status: `active`, `inactive`, or `cancelled`
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_cover_rules_school_id` - Index on `school_id`
+- `idx_cover_rules_club_id` - Index on `club_id`
+
+### Relationships
+
+- Belongs to `schools` (via `school_id`)
+- Belongs to `clubs` (via `club_id`)
+- Has many `cover_occurrences`
+
+---
+
+## cover_occurrences
+
+Individual instances of club sessions
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="cover_rule_id" type="UUID" required>
+  Foreign key to `cover_rules.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="meeting_date" type="TIMESTAMPTZ" required>
+  Scheduled date and time for this occurrence
+</ParamField>
+
+<ParamField path="actual_start" type="TIME">
+  Actual start time (if different from scheduled)
+</ParamField>
+
+<ParamField path="actual_end" type="TIME">
+  Actual end time (if different from scheduled)
+</ParamField>
+
+<ParamField path="notes" type="TEXT">
+  Notes specific to this occurrence
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_cover_occurrences_rule_id` - Index on `cover_rule_id`
+- `idx_cover_occurrences_date` - Index on `meeting_date` for calendar queries
+
+### Relationships
+
+- Belongs to `cover_rules` (via `cover_rule_id`)
+- Has many `teacher_cover_assignments`
+
+---
+
+## teacher_cover_assignments
+
+Links teachers to specific cover occurrences
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="teacher_id" type="UUID" required>
+  Foreign key to `teachers.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="cover_occurrence_id" type="UUID" required>
+  Foreign key to `cover_occurrences.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="status" type="assignment_status" default="'pending'">
+  Assignment status: `invited`, `accepted`, `declined`, `pending`, or `confirmed`
+</ParamField>
+
+<ParamField path="assigned_by" type="UUID">
+  User ID who created the assignment
+</ParamField>
+
+<ParamField path="invited_at" type="TIMESTAMPTZ">
+  When the teacher was invited
+</ParamField>
+
+<ParamField path="response_at" type="TIMESTAMPTZ">
+  When the teacher responded to the invitation
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_teacher_cover_assignments_teacher` - Index on `teacher_id`
+- `idx_teacher_cover_assignments_occurrence` - Index on `cover_occurrence_id`
+
+### Relationships
+
+- Belongs to `teachers` (via `teacher_id`)
+- Belongs to `cover_occurrences` (via `cover_occurrence_id`)
+
+---
+
+## broadcasts
+
+Mass communication campaigns
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="template_id" type="BIGINT">
+  Foreign key to `documents.id` (SET NULL on delete)
+</ParamField>
+
+<ParamField path="assignment_id" type="UUID">
+  Foreign key to `teacher_cover_assignments.id` (SET NULL on delete)
+</ParamField>
+
+<ParamField path="subject" type="VARCHAR(255)">
+  Email subject line
+</ParamField>
+
+<ParamField path="body" type="TEXT">
+  Message content
+</ParamField>
+
+<ParamField path="channel_used" type="broadcast_channel" required>
+  Communication channel: `sms`, `email`, or `all`
+</ParamField>
+
+<ParamField path="recipients_count" type="INTEGER" default="0">
+  Number of recipients
+</ParamField>
+
+<ParamField path="status" type="broadcast_status" default="'draft'">
+  Broadcast status: `draft`, `sending`, `completed`, or `failed`
+</ParamField>
+
+<ParamField path="sent_by_user_id" type="UUID">
+  User who initiated the broadcast
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_broadcasts_template` - Index on `template_id`
+- `idx_broadcasts_assignment` - Index on `assignment_id`
+
+### Relationships
+
+- May reference `documents` (via `template_id`)
+- May reference `teacher_cover_assignments` (via `assignment_id`)
+- Has many `messages`
+
+---
+
+## messages
+
+Individual messages sent to or received from teachers
+
+### Columns
+
+<ParamField path="id" type="UUID" required>
+  Primary key, auto-generated
+</ParamField>
+
+<ParamField path="teacher_id" type="UUID" required>
+  Foreign key to `teachers.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="broadcast_id" type="UUID">
+  Foreign key to `broadcasts.id` (SET NULL on delete)
+</ParamField>
+
+<ParamField path="document_id" type="BIGINT">
+  Foreign key to `documents.id` (SET NULL on delete)
+</ParamField>
+
+<ParamField path="channel" type="message_channel" required>
+  Delivery channel: `sms` or `email`
+</ParamField>
+
+<ParamField path="direction" type="message_direction" required>
+  Message direction: `outbound` or `inbound`
+</ParamField>
+
+<ParamField path="subject" type="VARCHAR(255)">
+  Email subject (for email messages)
+</ParamField>
+
+<ParamField path="body" type="TEXT">
+  Message content
+</ParamField>
+
+<ParamField path="status" type="message_status" default="'sent'">
+  Delivery status: `sent`, `delivered`, `opened`, `replied`, or `failed`
+</ParamField>
+
+<ParamField path="external_id" type="VARCHAR(255)">
+  External service ID (Twilio SID, Resend ID, etc.)
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+### Indexes
+
+- `idx_messages_teacher` - Index on `teacher_id`
+- `idx_messages_broadcast` - Index on `broadcast_id`
+- `idx_messages_status` - Index on `status`
+
+### Relationships
+
+- Belongs to `teachers` (via `teacher_id`)
+- May belong to `broadcasts` (via `broadcast_id`)
+- May reference `documents` (via `document_id`)
+
+---
+
+## documents
+
+File attachments and templates
+
+### Columns
+
+<ParamField path="id" type="BIGSERIAL" required>
+  Primary key, auto-incremented
+</ParamField>
+
+<ParamField path="type" type="document_type" required>
+  Document classification: `teacher_file`, `system_template`, or `sent_attachment`
+</ParamField>
+
+<ParamField path="filename" type="VARCHAR(255)" required>
+  Original filename
+</ParamField>
+
+<ParamField path="storage_path" type="VARCHAR(512)" required>
+  Path in storage system (e.g., Supabase Storage)
+</ParamField>
+
+<ParamField path="title" type="VARCHAR(255)">
+  Human-readable title
+</ParamField>
+
+<ParamField path="description" type="TEXT">
+  Document description or notes
+</ParamField>
+
+<ParamField path="status" type="document_status" default="'active'">
+  Document status: `active`, `archived`, or `deleted`
+</ParamField>
+
+<ParamField path="created_at" type="TIMESTAMPTZ" default="NOW()">
+  Record creation timestamp
+</ParamField>
+
+<ParamField path="updated_at" type="TIMESTAMPTZ" default="NOW()">
+  Last modification timestamp
+</ParamField>
+
+---
+
+## teacher_documents
+
+Junction table linking teachers to documents
+
+### Columns
+
+<ParamField path="teacher_id" type="UUID" required>
+  Foreign key to `teachers.id` (CASCADE on delete)
+</ParamField>
+
+<ParamField path="document_id" type="BIGINT" required>
+  Foreign key to `documents.id` (CASCADE on delete)
+</ParamField>
+
+### Primary Key
+
+Composite primary key: `(teacher_id, document_id)`
+
+### Indexes
+
+- `idx_teacher_documents_teacher` - Index on `teacher_id`
+- `idx_teacher_documents_document` - Index on `document_id`
+
+### Relationships
+
+- References `teachers` (via `teacher_id`)
+- References `documents` (via `document_id`)

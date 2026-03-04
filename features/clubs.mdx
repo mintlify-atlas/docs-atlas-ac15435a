@@ -1,0 +1,265 @@
+---
+title: 'Clubs Management'
+description: 'Create, organize, and manage after-school clubs across multiple schools'
+icon: 'users'
+---
+
+## Overview
+
+The Clubs Management feature allows school administrators to create and organize after-school clubs, extracurricular activities, and programs across multiple schools in their network. Each club has its own schedule, member count tracking, and automated cover scheduling rules.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Multi-School Support" icon="building">
+    Manage clubs across different schools from a single dashboard
+  </Card>
+  <Card title="Status Tracking" icon="signal">
+    Monitor club status (Active, Inactive, Cancelled)
+  </Card>
+  <Card title="Automated Scheduling" icon="calendar-check">
+    Set recurring cover rules that auto-generate sessions
+  </Card>
+  <Card title="Member Management" icon="users">
+    Track membership count for each club
+  </Card>
+</CardGroup>
+
+## User Workflows
+
+### Creating a New Club
+
+Administrators can add clubs through the Clubs Management interface:
+
+1. **Navigate to Clubs** - Access the club list at `/clubs/club-list`
+2. **Click "Add Club"** - Opens the club creation dialog
+3. **Fill Required Details**:
+   - Club Name (e.g., "Chess Club", "Drama Society")
+   - Club Code (unique identifier)
+   - School selection from dropdown
+   - Optional description
+4. **Submit** - Club is created with "Active" status by default
+
+<Frame>
+  <img src="/images/club-form.png" alt="Club creation form with name, code, school, and description fields" />
+</Frame>
+
+### Viewing Club Details
+
+Click any club row to view comprehensive details:
+
+<Steps>
+  <Step title="Club Overview">
+    View club name, status badge, school, code, description, and current member count
+  </Step>
+  <Step title="Configuration Panel">
+    Access the Cover Rules Manager to set up recurring schedules
+  </Step>
+  <Step title="Upcoming Sessions">
+    See a timeline of upcoming cover sessions with dates and times
+  </Step>
+</Steps>
+
+The club details view displays:
+- **Status Badge** - Visual indicator (Active/Inactive/Cancelled)
+- **School Information** - Associated school name
+- **Member Count** - Current enrollment with user icon
+- **Weekly Schedule** - Configured cover rules
+- **Timeline** - Next scheduled sessions with teacher assignments
+
+### Managing Cover Rules
+
+Cover Rules define the recurring schedule for club sessions:
+
+```typescript
+interface CoverRule {
+  frequency: 'weekly' | 'bi-weekly' | 'monthly'
+  day_of_week: 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+  start_time: string  // HH:mm format
+  end_time: string    // HH:mm format
+  status: 'active' | 'inactive' | 'cancelled'
+}
+```
+
+**To add a cover rule:**
+
+1. Open the club details page
+2. In the Configuration section, click "Add Rule"
+3. Select:
+   - **Day of week** - When the club meets
+   - **Frequency** - Weekly, bi-weekly, or monthly
+   - **Time slot** - Start and end times (e.g., 15:00 - 16:00)
+4. Save - The system automatically generates future cover occurrences
+
+Each rule displays as: "Mondays, 3:00 PM - 4:00 PM • Weekly • Active"
+
+### Editing and Updating
+
+From the clubs list or detail view:
+
+<Tabs>
+  <Tab title="Edit Club Info">
+    Click the edit icon or "Edit" button to modify:
+    - Club name
+    - Club code
+    - Description
+    - Status (Active → Inactive → Cancelled)
+  </Tab>
+  <Tab title="Edit Rules">
+    Click the edit icon on any cover rule to change:
+    - Meeting day
+    - Time slot
+    - Frequency
+    - Rule status
+  </Tab>
+  <Tab title="Delete">
+    Use the delete action to remove clubs or rules with confirmation prompt
+  </Tab>
+</Tabs>
+
+## Data Tables & Filtering
+
+The clubs list view provides powerful data management:
+
+**Search & Filter:**
+- **Global Search** - Search across club names, codes, and schools
+- **Status Filter** - Filter by Active, Inactive, or Cancelled
+- **School Filter** - View clubs from specific schools only
+
+**Data Actions:**
+- **Export** - Download filtered club data to CSV/Excel
+- **Pagination** - Configurable entries per page (10, 25, 50, 100)
+- **Sorting** - Click column headers to sort
+
+**Column Layout:**
+
+| Column | Description | Example |
+|--------|-------------|--------|
+| Club Name | Full name of the club | "Chess Club" |
+| Club Code | Unique identifier | "CHESS-001" |
+| School | Associated school | "Riverside Academy" |
+| Status | Current state | Active (badge) |
+| Members | Enrollment count | 24 |
+| Actions | View/Edit/Delete buttons | ⋮ menu |
+
+## Data Models
+
+Clubs use these TypeScript interfaces (from `src/types/club.types.ts`):
+
+<CodeGroup>
+
+```typescript Club Interface
+export interface Club {
+  id: string
+  school_id: string
+  club_name: string
+  category?: string
+  club_code: string
+  description?: string | null
+  members_count: number
+  status: ClubStatus
+  created_at: string
+  updated_at: string
+  school?: School
+}
+
+export type ClubStatus = 'active' | 'inactive' | 'cancelled'
+```
+
+```typescript School Interface
+export interface School {
+  id: string
+  school_name: string
+  address?: string | null
+  status: 'active' | 'inactive' | 'pending'
+  created_at: string
+  updated_at: string
+}
+```
+
+```typescript Cover Rule Interface
+export interface CoverRule {
+  id: string
+  school_id: string
+  club_id: string
+  frequency: CoverFrequency
+  day_of_week: DayOfWeek
+  start_time: string
+  end_time: string
+  status: CoverRuleStatus
+  created_at: string
+  updated_at: string
+  club?: Club
+  school?: School
+}
+
+export type CoverFrequency = 'weekly' | 'bi-weekly' | 'monthly'
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Use Descriptive Club Names">
+    Choose clear, recognizable names that parents and students understand. Include the activity type (e.g., "Junior Drama Club" vs just "Drama").
+  </Accordion>
+
+  <Accordion title="Maintain Unique Club Codes">
+    Use a consistent naming convention for codes (e.g., SCHOOL-ACTIVITY-NUMBER). This helps with reporting and integration.
+  </Accordion>
+
+  <Accordion title="Set Realistic Time Slots">
+    Configure cover rules with appropriate duration. Most after-school clubs run 60-90 minutes (15:00-16:30).
+  </Accordion>
+
+  <Accordion title="Update Status Instead of Deleting">
+    Set clubs to 'Inactive' or 'Cancelled' rather than deleting them. This preserves historical data and past cover sessions.
+  </Accordion>
+
+  <Accordion title="Regular Schedule Reviews">
+    Review and update cover rules at the start of each term. Inactive rules won't generate new sessions but preserve past occurrences.
+  </Accordion>
+</AccordionGroup>
+
+<Warning>
+  Deleting a club will also remove its associated cover rules and may impact upcoming cover sessions. Use the "Inactive" status to pause clubs temporarily.
+</Warning>
+
+## Common Scenarios
+
+### Scenario: Setting Up a Weekly Club
+
+1. Create the club: "Robotics Club" with code "ROBOT-001"
+2. Add cover rule: Thursdays, 15:30-17:00, Weekly
+3. System generates cover occurrences for next 3 months
+4. Assign teachers to covers via the Calendar view
+
+### Scenario: Handling Term Breaks
+
+When clubs pause for holidays:
+- Set cover rule status to "Inactive" temporarily
+- Delete unwanted generated occurrences from the Calendar
+- Reactivate the rule when term resumes
+
+### Scenario: Multi-Site Club Management
+
+For organizations running the same club at multiple schools:
+- Create separate club entries per school
+- Use consistent naming: "Chess Club - School A", "Chess Club - School B"
+- Use similar club codes: "CHESS-A", "CHESS-B"
+
+<Info>
+  Cover occurrences are automatically generated based on active cover rules. You can view and manage these in the [Cover Scheduling](/features/cover-scheduling) interface.
+</Info>
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Cover Scheduling" icon="calendar" href="/features/cover-scheduling">
+    View and manage auto-generated club sessions
+  </Card>
+  <Card title="Teachers" icon="chalkboard-user" href="/features/teachers">
+    Assign teachers to cover club sessions
+  </Card>
+</CardGroup>

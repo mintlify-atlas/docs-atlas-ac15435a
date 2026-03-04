@@ -1,0 +1,431 @@
+---
+title: TypeScript Types Reference
+description: Type definitions for ClubConnect UK frontend development
+---
+
+## Overview
+
+ClubConnect UK uses TypeScript for type safety across the application. This page documents all interfaces and types used in the codebase, organized by domain.
+
+## Core Types
+
+### PersonDetails
+
+Represents personal information for individuals in the system.
+
+```typescript
+interface PersonDetails {
+  id: string
+  first_name: string
+  middle_name?: string | null
+  last_name: string
+  email?: string | null
+  address?: string | null
+  contact?: string | null
+  image?: string | null
+  created_at: string
+  updated_at: string
+}
+```
+
+<ResponseField name="id" type="string" required>
+  UUID identifier
+</ResponseField>
+
+<ResponseField name="first_name" type="string" required>
+  Individual's first name
+</ResponseField>
+
+<ResponseField name="middle_name" type="string | null">
+  Optional middle name
+</ResponseField>
+
+<ResponseField name="last_name" type="string" required>
+  Individual's last name
+</ResponseField>
+
+<ResponseField name="email" type="string | null">
+  Email address
+</ResponseField>
+
+<ResponseField name="contact" type="string | null">
+  Phone number or contact information
+</ResponseField>
+
+<ResponseField name="image" type="string | null">
+  URL or path to profile image
+</ResponseField>
+
+### Teacher
+
+Represents a teaching staff member.
+
+```typescript
+interface Teacher {
+  id: string
+  persons_details_id: string
+  documents_id?: string | null
+  primary_styles?: string | null
+  secondary_styles?: string | null
+  general_notes?: string | null
+  is_blocked: boolean
+  created_at: string
+  updated_at: string
+  person_details: PersonDetails
+}
+```
+
+<ResponseField name="id" type="string" required>
+  Teacher UUID
+</ResponseField>
+
+<ResponseField name="persons_details_id" type="string" required>
+  Foreign key to PersonDetails
+</ResponseField>
+
+<ResponseField name="primary_styles" type="string | null">
+  Primary teaching styles or specializations
+</ResponseField>
+
+<ResponseField name="secondary_styles" type="string | null">
+  Secondary teaching styles
+</ResponseField>
+
+<ResponseField name="general_notes" type="string | null">
+  Administrative notes about the teacher
+</ResponseField>
+
+<ResponseField name="is_blocked" type="boolean" required>
+  Whether the teacher is blocked from assignments
+</ResponseField>
+
+<ResponseField name="person_details" type="PersonDetails" required>
+  Nested person details object
+</ResponseField>
+
+## School and Club Types
+
+### School
+
+```typescript
+interface School {
+  id: string
+  school_name: string
+  address?: string | null
+  status: 'active' | 'inactive' | 'pending'
+  created_at: string
+  updated_at: string
+}
+```
+
+<ResponseField name="status" type="'active' | 'inactive' | 'pending'" required>
+  Current operational status of the school
+</ResponseField>
+
+### Club
+
+```typescript
+type ClubStatus = 'active' | 'inactive' | 'cancelled'
+
+interface Club {
+  id: string
+  school_id: string
+  club_name: string
+  category?: string
+  club_code: string
+  description?: string | null
+  members_count: number
+  status: ClubStatus
+  created_at: string
+  updated_at: string
+  school?: School
+}
+```
+
+<ResponseField name="club_code" type="string" required>
+  Short identifier for the club (e.g., "CHESS01")
+</ResponseField>
+
+<ResponseField name="members_count" type="number" required>
+  Number of students enrolled in the club
+</ResponseField>
+
+<ResponseField name="school" type="School">
+  Nested school object when using joins
+</ResponseField>
+
+## Cover and Scheduling Types
+
+### CoverRule
+
+```typescript
+type CoverFrequency = 'weekly' | 'bi-weekly' | 'monthly'
+type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+type CoverRuleStatus = 'active' | 'inactive' | 'cancelled'
+
+interface CoverRule {
+  id: string
+  school_id: string
+  club_id: string
+  frequency: CoverFrequency
+  day_of_week: DayOfWeek
+  start_time: string
+  end_time: string
+  status: CoverRuleStatus
+  created_at: string
+  updated_at: string
+  club?: Club
+  school?: School
+}
+```
+
+<ResponseField name="frequency" type="CoverFrequency" required>
+  How often the session repeats
+</ResponseField>
+
+<ResponseField name="day_of_week" type="DayOfWeek" required>
+  Day of the week the session occurs
+</ResponseField>
+
+<ResponseField name="start_time" type="string" required>
+  Session start time (format: "HH:MM:SS")
+</ResponseField>
+
+<ResponseField name="end_time" type="string" required>
+  Session end time (format: "HH:MM:SS")
+</ResponseField>
+
+### CoverOccurrence
+
+```typescript
+type OccurrenceStatus = 'not_started' | 'in_progress' | 'completed'
+type Priority = 'low' | 'medium' | 'high'
+
+interface CoverOccurrence {
+  id: string
+  cover_rule_id: string
+  meeting_date: string
+  actual_start?: string | null
+  actual_end?: string | null
+  notes?: string | null
+  status: OccurrenceStatus
+  priority: Priority
+  created_at: string
+  updated_at: string
+  cover_rule?: CoverRule
+  assignments?: Array<TeacherCoverAssignment>
+}
+```
+
+<ResponseField name="meeting_date" type="string" required>
+  ISO 8601 date string for the scheduled session
+</ResponseField>
+
+<ResponseField name="actual_start" type="string | null">
+  Actual start time if different from scheduled
+</ResponseField>
+
+<ResponseField name="actual_end" type="string | null">
+  Actual end time if different from scheduled
+</ResponseField>
+
+<ResponseField name="assignments" type="Array<TeacherCoverAssignment>">
+  Teachers assigned to this occurrence
+</ResponseField>
+
+### TeacherCoverAssignment
+
+```typescript
+type AssignmentStatus = 'invited' | 'accepted' | 'declined' | 'pending' | 'confirmed'
+
+interface TeacherCoverAssignment {
+  id: string
+  teacher_id: string
+  cover_occurrence_id: string
+  status: AssignmentStatus
+  assigned_by?: string | null
+  invited_at?: string | null
+  response_at?: string | null
+  created_at: string
+  teacher?: Teacher
+}
+```
+
+<ResponseField name="status" type="AssignmentStatus" required>
+  Current state of the assignment:
+  - `invited`: Teacher has been invited
+  - `accepted`: Teacher accepted the assignment
+  - `declined`: Teacher declined
+  - `pending`: Waiting for response
+  - `confirmed`: Assignment is confirmed
+</ResponseField>
+
+## Communication Types
+
+### Broadcast
+
+```typescript
+interface Broadcast {
+  id: string
+  subject: string
+  message?: string
+  sent_date: string
+  status: 'draft' | 'scheduled' | 'sent' | 'failed'
+  recipients_count?: number
+  created_at: string
+  updated_at: string
+}
+```
+
+<ResponseField name="status" type="'draft' | 'scheduled' | 'sent' | 'failed'" required>
+  Current state of the broadcast campaign
+</ResponseField>
+
+<ResponseField name="recipients_count" type="number">
+  Number of teachers receiving the broadcast
+</ResponseField>
+
+## Calendar Types
+
+### CalendarEvent
+
+Wrapper for react-big-calendar events.
+
+```typescript
+interface CalendarEvent {
+  id: string
+  title: string
+  start: Date
+  end: Date
+  displayStart: Date
+  displayEnd: Date
+  resource: CoverOccurrence
+}
+```
+
+<ResponseField name="title" type="string" required>
+  Display title for the event (typically club name)
+</ResponseField>
+
+<ResponseField name="resource" type="CoverOccurrence" required>
+  The underlying cover occurrence data
+</ResponseField>
+
+### EventDropInfo
+
+Drag-and-drop event information.
+
+```typescript
+interface EventDropInfo {
+  event: CalendarEvent
+  start: Date
+  end?: Date
+}
+```
+
+### DropFromOutsideInfo
+
+```typescript
+interface DropFromOutsideInfo {
+  start: Date
+  end?: Date
+  allDay?: boolean
+}
+```
+
+### ShowMoreProps
+
+Props for custom "show more" component in calendar.
+
+```typescript
+interface ShowMoreProps {
+  events: Array<CalendarEvent>
+  label?: string
+  slotMetrics?: SlotMetrics
+}
+
+interface SlotMetrics {
+  date: Date
+}
+```
+
+### EventComponentProps
+
+```typescript
+interface EventComponentProps {
+  event: CalendarEvent
+}
+```
+
+### DateCellWrapperProps
+
+```typescript
+interface DateCellWrapperProps {
+  children: React.ReactNode
+  value: Date
+}
+```
+
+## Type Unions
+
+Commonly used union types for strict type checking:
+
+```typescript
+// Status Types
+type SchoolStatus = 'active' | 'inactive' | 'pending'
+type ClubStatus = 'active' | 'inactive' | 'cancelled'
+type CoverRuleStatus = 'active' | 'inactive' | 'cancelled'
+type OccurrenceStatus = 'not_started' | 'in_progress' | 'completed'
+type AssignmentStatus = 'invited' | 'accepted' | 'declined' | 'pending' | 'confirmed'
+
+// Frequency and Time
+type CoverFrequency = 'weekly' | 'bi-weekly' | 'monthly'
+type DayOfWeek = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday'
+type Priority = 'low' | 'medium' | 'high'
+
+// Communication
+type BroadcastStatus = 'draft' | 'scheduled' | 'sent' | 'failed'
+```
+
+## Usage Examples
+
+### Creating a New Club
+
+```typescript
+import type { Club } from '@/types/club.types'
+
+const newClub: Omit<Club, 'id' | 'created_at' | 'updated_at'> = {
+  school_id: 'uuid-here',
+  club_name: 'Chess Club',
+  club_code: 'CHESS01',
+  description: 'Weekly chess strategy and practice',
+  members_count: 0,
+  status: 'active'
+}
+```
+
+### Working with Cover Occurrences
+
+```typescript
+import type { CoverOccurrence, CoverRule } from '@/types/club.types'
+
+function getOccurrenceTitle(occurrence: CoverOccurrence): string {
+  return occurrence.cover_rule?.club?.club_name || 'Unnamed Club'
+}
+
+function isUpcoming(occurrence: CoverOccurrence): boolean {
+  return new Date(occurrence.meeting_date) > new Date()
+}
+```
+
+### Type Guards
+
+```typescript
+function hasAssignments(occurrence: CoverOccurrence): occurrence is CoverOccurrence & { assignments: Array<TeacherCoverAssignment> } {
+  return !!occurrence.assignments && occurrence.assignments.length > 0
+}
+
+function isConfirmed(assignment: TeacherCoverAssignment): boolean {
+  return assignment.status === 'confirmed' || assignment.status === 'accepted'
+}
+```

@@ -1,0 +1,783 @@
+---
+title: Installation
+description: Complete installation guide for ClubConnect UK including prerequisites, setup, and configuration
+---
+
+# Installation
+
+This comprehensive guide covers everything you need to install and configure ClubConnect UK for development or production deployment.
+
+## Prerequisites
+
+Before installing ClubConnect UK, ensure you have the following installed and configured.
+
+### Node.js and pnpm
+
+<Steps>
+  <Step title="Install Node.js">
+    ClubConnect UK requires Node.js 18 or higher.
+    
+    <Tabs>
+      <Tab title="macOS">
+        ```bash
+        # Using Homebrew
+        brew install node
+        
+        # Verify installation
+        node --version  # Should be 18.0.0 or higher
+        ```
+      </Tab>
+      
+      <Tab title="Windows">
+        Download the installer from [nodejs.org](https://nodejs.org/)
+        
+        Or use a package manager:
+        ```powershell
+        # Using Chocolatey
+        choco install nodejs
+        
+        # Using Winget
+        winget install OpenJS.NodeJS
+        ```
+        
+        Verify installation:
+        ```powershell
+        node --version
+        ```
+      </Tab>
+      
+      <Tab title="Linux">
+        ```bash
+        # Using NodeSource repository (Ubuntu/Debian)
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        
+        # Verify installation
+        node --version
+        ```
+      </Tab>
+    </Tabs>
+  </Step>
+  
+  <Step title="Install pnpm">
+    ClubConnect UK uses pnpm as its package manager for better performance and disk efficiency.
+    
+    ```bash
+    # Install pnpm globally
+    npm install -g pnpm
+    
+    # Verify installation
+    pnpm --version  # Should be 8.0.0 or higher
+    ```
+    
+    <Info>
+      pnpm uses a content-addressable storage system, saving significant disk space compared to npm or yarn.
+    </Info>
+  </Step>
+</Steps>
+
+### Supabase account
+
+<Steps>
+  <Step title="Create a Supabase account">
+    1. Go to [supabase.com](https://supabase.com)
+    2. Click **Start your project**
+    3. Sign up with GitHub, GitLab, or email
+  </Step>
+  
+  <Step title="Create a new project">
+    1. From your dashboard, click **New Project**
+    2. Choose an organization (or create one)
+    3. Enter project details:
+       - **Name**: ClubConnect UK (or your preference)
+       - **Database Password**: Strong password (save this securely)
+       - **Region**: Choose closest to your users
+       - **Pricing Plan**: Free tier is sufficient for development
+    4. Click **Create new project**
+    
+    <Warning>
+      Save your database password securely. You'll need it for CLI operations.
+    </Warning>
+  </Step>
+  
+  <Step title="Get your API credentials">
+    Once your project is ready:
+    
+    1. Go to **Settings** → **API**
+    2. Copy these values:
+       - **Project URL** (e.g., `https://xxxxx.supabase.co`)
+       - **anon/public key** (starts with `eyJhbGc...`)
+    
+    You'll use these in your `.env` file.
+  </Step>
+</Steps>
+
+### Supabase CLI (optional but recommended)
+
+<Tabs>
+  <Tab title="Using npx (No Installation)">
+    You can use Supabase CLI without installing it:
+    
+    ```bash
+    npx supabase --version
+    ```
+    
+    Replace `supabase` with `npx supabase` in all commands throughout this guide.
+  </Tab>
+  
+  <Tab title="Install Globally">
+    <Tabs>
+      <Tab title="macOS/Linux">
+        ```bash
+        brew install supabase/tap/supabase
+        ```
+      </Tab>
+      
+      <Tab title="Windows (Scoop)">
+        ```powershell
+        # Install Scoop if needed
+        iwr -useb get.scoop.sh | iex
+        
+        # Install Supabase CLI
+        scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+        scoop install supabase
+        ```
+      </Tab>
+      
+      <Tab title="npm">
+        ```bash
+        npm install -g supabase
+        ```
+      </Tab>
+    </Tabs>
+    
+    Verify installation:
+    ```bash
+    supabase --version
+    ```
+  </Tab>
+</Tabs>
+
+## Installation steps
+
+Now that prerequisites are installed, let's set up ClubConnect UK.
+
+### 1. Clone the repository
+
+```bash
+git clone <your-repository-url>
+cd ClubConnectUK
+```
+
+<Tip>
+  If you're using SSH keys with GitHub, use the SSH URL instead of HTTPS.
+</Tip>
+
+### 2. Install dependencies
+
+Install all required packages:
+
+```bash
+pnpm install
+```
+
+This installs 50+ packages including:
+
+<AccordionGroup>
+  <Accordion title="Core Framework Dependencies">
+    - `@tanstack/react-start` - Full-stack React framework
+    - `@tanstack/react-router` - Type-safe routing
+    - `@tanstack/react-query` - Data fetching and caching
+    - `@tanstack/react-store` - State management
+    - `react` and `react-dom` - React core libraries
+  </Accordion>
+  
+  <Accordion title="Backend & Database">
+    - `@supabase/supabase-js` - Supabase client library
+    - `resend` - Email delivery service
+    - `ai` - AI SDK for intelligent features
+    - `zod` - Schema validation
+  </Accordion>
+  
+  <Accordion title="UI & Styling">
+    - `tailwindcss` - Utility-first CSS
+    - `@radix-ui/*` - Accessible UI primitives
+    - `lucide-react` - Icon library
+    - `@hugeicons/react` - Additional icons
+    - `next-themes` - Dark mode support
+    - `sonner` - Toast notifications
+  </Accordion>
+  
+  <Accordion title="Additional Features">
+    - `react-big-calendar` - Calendar views
+    - `react-markdown` - Markdown rendering
+    - `date-fns` - Date utilities
+    - `@tanstack/react-table` - Table component
+  </Accordion>
+</AccordionGroup>
+
+<Info>
+  Installation typically takes 1-2 minutes. The `pnpm-lock.yaml` ensures consistent installs across environments.
+</Info>
+
+### 3. Configure environment variables
+
+Create a `.env` file in the project root:
+
+```bash
+touch .env
+```
+
+Add your Supabase credentials:
+
+<CodeGroup>
+```bash .env
+# Supabase Configuration
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key-here
+```
+</CodeGroup>
+
+<Warning>
+  **Important**: Never commit `.env` to version control. It should be in `.gitignore`.
+</Warning>
+
+<Accordion title="How the environment variables are used">
+```typescript src/services/supabase.ts
+import { createClient } from '@supabase/supabase-js'
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabase = createClient(
+  supabaseUrl || '', 
+  supabaseAnonKey || '', 
+  {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  }
+)
+```
+
+The `VITE_` prefix makes these variables available in the browser via Vite's `import.meta.env`.
+</Accordion>
+
+### 4. Database setup
+
+Set up the PostgreSQL database with all required tables and policies.
+
+<Steps>
+  <Step title="Link your Supabase project">
+    ```bash
+    npx supabase link --project-ref your-project-ref
+    ```
+    
+    <Accordion title="Finding your project reference ID">
+      Your project ref is in the Supabase dashboard URL:
+      
+      ```
+      https://app.supabase.com/project/xxxxxxxxxxxxx/
+                                      ↑ This is your project ref
+      ```
+      
+      Or go to **Settings** → **General** → **Reference ID**
+    </Accordion>
+    
+    You'll be prompted for your database password (set during project creation).
+  </Step>
+  
+  <Step title="Review available migrations">
+    ClubConnect UK includes 4 migration files:
+    
+    ```bash
+    supabase/migrations/
+    ├── 20250101000000_initial_schema.sql      # Core tables and schema
+    ├── 20250101000001_rls_policies.sql        # Row-level security
+    ├── 20251224000000_clubs_enhancements.sql  # Club improvements
+    └── combined_migration.sql                 # All-in-one migration
+    ```
+  </Step>
+  
+  <Step title="Apply migrations">
+    ```bash
+    npx supabase db push
+    ```
+    
+    This creates:
+    
+    <AccordionGroup>
+      <Accordion title="Core Tables (13 tables)">
+        - `person_details` - Personal information for all users
+        - `schools` - School institutions
+        - `clubs` - Extracurricular clubs
+        - `teachers` - Teacher profiles and metadata
+        - `documents` - File storage references
+        - `teacher_documents` - Many-to-many teacher/document junction
+        - `cover_rules` - Recurring schedule definitions
+        - `cover_occurrences` - Individual cover instances
+        - `teacher_cover_assignments` - Teacher-to-cover assignments
+        - `broadcasts` - Mass communication records
+        - `messages` - Individual message tracking
+      </Accordion>
+      
+      <Accordion title="Custom Types">
+        ```sql
+        CREATE TYPE school_status AS ENUM ('active', 'inactive', 'pending');
+        CREATE TYPE day_of_week AS ENUM ('monday', 'tuesday', 'wednesday', ...);
+        CREATE TYPE frequency_type AS ENUM ('weekly', 'bi-weekly', 'monthly');
+        CREATE TYPE cover_status AS ENUM ('active', 'inactive', 'cancelled');
+        CREATE TYPE assignment_status AS ENUM ('invited', 'accepted', 'declined', ...);
+        CREATE TYPE broadcast_channel AS ENUM ('sms', 'email', 'all');
+        CREATE TYPE message_status AS ENUM ('sent', 'delivered', 'opened', ...);
+        ```
+      </Accordion>
+      
+      <Accordion title="Triggers & Functions">
+        - `handle_updated_at()` - Auto-update timestamps on row changes
+        - Applied to all tables with `updated_at` columns
+      </Accordion>
+      
+      <Accordion title="Indexes (20+ indexes)">
+        Optimized indexes on:
+        - Foreign keys for joins
+        - Status fields for filtering
+        - Date fields for range queries
+        - Frequently searched columns
+      </Accordion>
+    </AccordionGroup>
+  </Step>
+  
+  <Step title="Verify migration success">
+    Check that tables were created:
+    
+    ```bash
+    # Using Supabase CLI
+    npx supabase db diff
+    ```
+    
+    Or in the Supabase Dashboard:
+    1. Go to **Database** → **Tables**
+    2. Verify you see: schools, clubs, teachers, cover_rules, etc.
+  </Step>
+</Steps>
+
+### 5. Seed the database (optional)
+
+Populate the database with sample data for testing:
+
+<CodeGroup>
+```bash Option 1: Supabase Dashboard
+# 1. Go to Supabase Dashboard → SQL Editor
+# 2. Click "New Query"
+# 3. Copy and paste contents of supabase/seed.sql
+# 4. Click "Run"
+```
+
+```bash Option 2: CLI Reset (Local Dev)
+# Reset database and apply all migrations + seeds
+npx supabase db reset
+```
+</CodeGroup>
+
+<Info>
+  The seed file (`supabase/seed.sql`) contains sample schools, clubs, teachers, and cover schedules.
+</Info>
+
+### 6. Create an admin user
+
+Create your first user account for logging in:
+
+<Steps>
+  <Step title="Via Supabase Dashboard">
+    1. Go to **Authentication** → **Users**
+    2. Click **Add User** → **Create new user**
+    3. Enter:
+       - **Email**: your-email@example.com
+       - **Password**: Choose a strong password
+       - **Auto Confirm User**: ✅ Enable
+    4. Click **Create user**
+  </Step>
+  
+  <Step title="Via SQL (Alternative)">
+    Run this in **SQL Editor**:
+    
+    ```sql
+    -- Create user via SQL
+    INSERT INTO auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      created_at,
+      updated_at,
+      confirmation_token
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000',
+      gen_random_uuid(),
+      'authenticated',
+      'authenticated',
+      'admin@clubconnect.uk',
+      crypt('your-password', gen_salt('bf')),
+      NOW(),
+      NOW(),
+      NOW(),
+      ''
+    );
+    ```
+    
+    <Warning>
+      Replace `your-password` with your actual password.
+    </Warning>
+  </Step>
+</Steps>
+
+## Running the application
+
+Start the development server:
+
+```bash
+pnpm dev
+```
+
+The application will be available at:
+
+```
+http://localhost:3000
+```
+
+<Accordion title="Development server details">
+  The dev server includes:
+  
+  - **Port**: 3000 (configurable in `package.json`)
+  - **Hot Module Replacement**: Instant updates on file changes
+  - **Source Maps**: Full debugging support
+  - **DevTools**: TanStack Router and Query DevTools enabled
+  - **React Compiler**: Babel plugin for optimizations
+  
+  Configuration:
+  
+  ```typescript vite.config.ts
+  export default defineConfig({
+    plugins: [
+      viteTsConfigPaths({ projects: ['./tsconfig.json'] }),
+      tailwindcss(),
+      tanstackStart(),
+      viteReact({
+        babel: {
+          plugins: ['babel-plugin-react-compiler'],
+        },
+      }),
+    ],
+  })
+  ```
+</Accordion>
+
+## Configuration
+
+### Supabase configuration
+
+The Supabase CLI configuration is in `supabase/config.toml`:
+
+```toml
+[api]
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+[db]
+port = 54322
+major_version = 17
+
+[studio]
+port = 54323
+
+[auth]
+site_url = "http://localhost:3000"
+enable_signup = true
+jwt_expiry = 3600
+```
+
+<Tip>
+  You can customize ports, JWT expiry, and other settings in this file.
+</Tip>
+
+### TypeScript configuration
+
+ClubConnect UK uses strict TypeScript for maximum type safety:
+
+```json tsconfig.json
+{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+```
+
+### Tailwind CSS
+
+Tailwind is configured via `tailwind.config.ts` and uses CSS variables for theming:
+
+```css
+:root {
+  --primary: #your-primary-color;
+  --primary-light: #lighter-shade;
+  /* Additional theme variables */
+}
+```
+
+## Building for production
+
+### Build the application
+
+```bash
+pnpm build
+```
+
+This creates an optimized production build in `.output/`:
+
+- Minified JavaScript and CSS
+- Tree-shaken dependencies
+- Server-side rendering setup
+- Static assets with cache headers
+
+### Preview the production build
+
+```bash
+pnpm serve
+```
+
+This starts a production server to test the build locally.
+
+### Start the production server
+
+```bash
+pnpm start
+```
+
+Runs the production build with Node.js:
+
+```bash
+node --import ./.output/server/instrument.server.mjs .output/server/index.mjs
+```
+
+<Info>
+  The production server includes Sentry instrumentation for error monitoring.
+</Info>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="pnpm install fails">
+    **Symptoms**: Installation errors, missing packages, or network timeouts
+    
+    **Solutions**:
+    
+    1. Clear pnpm cache:
+       ```bash
+       pnpm store prune
+       ```
+    
+    2. Delete `node_modules` and reinstall:
+       ```bash
+       rm -rf node_modules pnpm-lock.yaml
+       pnpm install
+       ```
+    
+    3. Check Node.js version:
+       ```bash
+       node --version  # Must be 18+
+       ```
+    
+    4. Try with legacy peer deps:
+       ```bash
+       pnpm install --legacy-peer-deps
+       ```
+  </Accordion>
+  
+  <Accordion title="Supabase connection errors">
+    **Symptoms**: "Failed to fetch", "Invalid API key", or CORS errors
+    
+    **Solutions**:
+    
+    1. Verify `.env` file exists and has correct format:
+       ```bash
+       cat .env
+       ```
+    
+    2. Check credentials in Supabase Dashboard:
+       - **Settings** → **API**
+       - Copy fresh `URL` and `anon key`
+    
+    3. Restart dev server after changing `.env`:
+       ```bash
+       # Stop server (Ctrl+C)
+       pnpm dev
+       ```
+    
+    4. Test connection manually:
+       ```typescript
+       import { supabase } from './src/services/supabase'
+       
+       const { data, error } = await supabase
+         .from('schools')
+         .select('*')
+         .limit(1)
+       
+       console.log(data, error)
+       ```
+  </Accordion>
+  
+  <Accordion title="Migration failures">
+    **Symptoms**: "Migration failed", SQL syntax errors, or permission denied
+    
+    **Solutions**:
+    
+    1. Verify project is linked:
+       ```bash
+       npx supabase projects list
+       ```
+    
+    2. Check migration files for syntax errors:
+       ```bash
+       cat supabase/migrations/20250101000000_initial_schema.sql
+       ```
+    
+    3. View detailed error output:
+       ```bash
+       npx supabase db push --debug
+       ```
+    
+    4. Reset and retry (local dev only):
+       ```bash
+       npx supabase db reset
+       ```
+    
+    5. Manually run migrations:
+       - Copy migration SQL
+       - Run in **SQL Editor** in Supabase Dashboard
+       - Check error messages
+  </Accordion>
+  
+  <Accordion title="TypeScript errors">
+    **Symptoms**: Type errors, "Cannot find module", or import issues
+    
+    **Solutions**:
+    
+    1. Regenerate Supabase types:
+       ```bash
+       npx supabase gen types typescript --linked > src/types/supabase.ts
+       ```
+    
+    2. Restart TypeScript server in your editor:
+       - **VS Code**: Cmd/Ctrl + Shift + P → "TypeScript: Restart TS Server"
+    
+    3. Check path aliases in `tsconfig.json`:
+       ```json
+       {
+         "compilerOptions": {
+           "paths": {
+             "@/*": ["./src/*"]
+           }
+         }
+       }
+       ```
+    
+    4. Clear build cache:
+       ```bash
+       rm -rf .output node_modules/.vite
+       pnpm dev
+       ```
+  </Accordion>
+  
+  <Accordion title="Port already in use">
+    **Symptoms**: "EADDRINUSE: address already in use :::3000"
+    
+    **Solutions**:
+    
+    1. Find process using port:
+       ```bash
+       # macOS/Linux
+       lsof -i :3000
+       
+       # Windows
+       netstat -ano | findstr :3000
+       ```
+    
+    2. Kill the process:
+       ```bash
+       # macOS/Linux
+       kill -9 <PID>
+       
+       # Windows
+       taskkill /PID <PID> /F
+       ```
+    
+    3. Or use a different port:
+       ```json package.json
+       {
+         "scripts": {
+           "dev": "vite dev --port 3001"
+         }
+       }
+       ```
+  </Accordion>
+  
+  <Accordion title="Build fails">
+    **Symptoms**: Build errors, out of memory, or module resolution issues
+    
+    **Solutions**:
+    
+    1. Increase Node memory:
+       ```bash
+       NODE_OPTIONS="--max-old-space-size=4096" pnpm build
+       ```
+    
+    2. Clear cache and rebuild:
+       ```bash
+       rm -rf .output node_modules/.vite
+       pnpm build
+       ```
+    
+    3. Check for TypeScript errors:
+       ```bash
+       pnpm tsc --noEmit
+       ```
+    
+    4. Update dependencies:
+       ```bash
+       pnpm update
+       ```
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+    Jump into development with our quick start tutorial
+  </Card>
+  
+  <Card title="Database Schema" icon="database" href="/guides/database-schema">
+    Learn about the database structure and relationships
+  </Card>
+  
+  <Card title="Authentication" icon="lock" href="/guides/authentication">
+    Understand how authentication works with Supabase
+  </Card>
+  
+  <Card title="Deployment" icon="cloud-upload" href="/guides/deployment">
+    Deploy ClubConnect UK to production
+  </Card>
+</CardGroup>

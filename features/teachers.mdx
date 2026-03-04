@@ -1,0 +1,344 @@
+---
+title: 'Teachers Management'
+description: 'Add, organize, and manage your pool of cover teachers'
+icon: 'chalkboard-user'
+---
+
+## Overview
+
+The Teachers Management system maintains your database of cover teachers who can be assigned to after-school club sessions. Teachers have detailed profiles including contact information, teaching styles, qualifications, and availability status.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Complete Profiles" icon="id-card">
+    Store personal details, contact info, and professional notes
+  </Card>
+  <Card title="Style Tracking" icon="palette">
+    Record primary and secondary teaching styles for better matching
+  </Card>
+  <Card title="Block/Unblock" icon="ban">
+    Control teacher availability with status management
+  </Card>
+  <Card title="Quick Actions" icon="bolt">
+    View, edit, and manage teachers with slide-out sheets
+  </Card>
+</CardGroup>
+
+## User Workflows
+
+### Adding a New Teacher
+
+Administrators add teachers through a streamlined form:
+
+<Steps>
+  <Step title="Open Add Teacher Form">
+    Click "Add Teacher" button in the teacher list to open the form sheet
+  </Step>
+  <Step title="Enter Personal Details">
+    - First Name (required)
+    - Last Name (required)
+    - Email address
+    - Phone contact number
+    - Physical address
+  </Step>
+  <Step title="Add Professional Information">
+    - Primary teaching styles (e.g., "Guitar", "Piano", "Drums")
+    - Secondary teaching styles (additional skills)
+    - General notes (qualifications, preferences, restrictions)
+  </Step>
+  <Step title="Save">
+    Teacher is created and appears in the list immediately
+  </Step>
+</Steps>
+
+<Frame>
+  <img src="/images/teacher-form.png" alt="Teacher form sheet showing personal and professional fields" />
+</Frame>
+
+### Viewing Teacher Profiles
+
+Click any teacher row to open the **View Sheet** with complete details:
+
+**Profile Overview:**
+- Full name with avatar initials
+- Email address (clickable mailto link)
+- Contact phone number
+- Full address
+- Blocked status indicator
+
+**Professional Information:**
+- Primary teaching styles (highlighted badges)
+- Secondary teaching styles
+- General notes section
+- Created and updated timestamps
+
+**Quick Actions:**
+- **Edit** - Opens edit form with pre-filled data
+- **Delete** - Removes teacher with confirmation
+
+<Note>
+  The view sheet provides quick navigation between viewing and editing without losing context. Clicking "Edit" opens the form sheet, and canceling returns you to the view.
+</Note>
+
+### Editing Teacher Information
+
+From the teacher list or view sheet:
+
+<Tabs>
+  <Tab title="From List">
+    Click the edit icon (⋮ menu → Edit) to open the form directly
+  </Tab>
+  <Tab title="From View Sheet">
+    Click "Edit" button at the bottom of the view sheet
+  </Tab>
+  <Tab title="Edit Flow">
+    1. Form opens with current data pre-filled
+    2. Modify any fields
+    3. Click "Update Teacher" to save
+    4. Returns to view sheet if opened from there
+  </Tab>
+</Tabs>
+
+### Managing Teacher Status
+
+**Blocking Teachers:**
+
+When a teacher is temporarily unavailable:
+1. Open the teacher's profile
+2. Toggle the "Blocked" status
+3. Blocked teachers:
+   - Appear with red "Blocked" badge in lists
+   - Cannot be assigned to new cover sessions
+   - Remain visible in historical data
+
+<Warning>
+  Blocked teachers cannot receive new assignments. Ensure you reassign their existing covers before blocking.
+</Warning>
+
+## Data Tables & Search
+
+The teacher list provides comprehensive management tools:
+
+**Search Capabilities:**
+- **Global Search** - Searches across names, email, contact, and styles
+- Real-time filtering as you type
+- Searches within all teacher fields simultaneously
+
+**Filtering Options:**
+- **Primary Styles Filter** - Filter by teaching specialty
+- Auto-generated from existing teacher styles
+- Multi-select capability
+
+**Data Management:**
+- **Export** - Download filtered teacher list to CSV/Excel
+- **Pagination** - Show 10, 25, 50, or 100 entries per page
+- **Column Sorting** - Sort by name, email, styles, or contact
+
+**Table Columns:**
+
+| Column | Description | Example |
+|--------|-------------|--------|
+| Teacher | Avatar + Full Name + Email | John Smith<br/>john@school.com |
+| Primary Styles | Main teaching specialties | Guitar, Vocals |
+| Secondary Styles | Additional skills | Piano, Theory |
+| Contact | Phone number | +44 7700 900123 |
+| Status | Blocked indicator | Active / Blocked |
+| Actions | View/Edit/Delete | ⋮ |
+
+## Data Models
+
+Teachers use these TypeScript interfaces (from `src/types/teacher.types.ts`):
+
+<CodeGroup>
+
+```typescript Teacher Interface
+export interface Teacher {
+  id: string
+  persons_details_id: string
+  documents_id?: string | null
+  primary_styles?: string | null
+  secondary_styles?: string | null
+  general_notes?: string | null
+  is_blocked: boolean
+  created_at: string
+  updated_at: string
+  person_details: PersonDetails
+}
+```
+
+```typescript Person Details
+export interface PersonDetails {
+  id: string
+  first_name: string
+  middle_name?: string | null
+  last_name: string
+  email?: string | null
+  address?: string | null
+  contact?: string | null
+  image?: string | null
+  created_at: string
+  updated_at: string
+}
+```
+
+```typescript Assignment Reference
+export interface TeacherCoverAssignment {
+  id: string
+  teacher_id: string
+  cover_occurrence_id: string
+  status: 'invited' | 'accepted' | 'declined' | 'pending' | 'confirmed'
+  assigned_by?: string | null
+  invited_at?: string | null
+  response_at?: string | null
+  created_at: string
+  teacher?: Teacher
+}
+```
+
+</CodeGroup>
+
+## API Mutations
+
+The teacher management system uses these operations (from `src/features/teachers/api/mutations.ts`):
+
+**Create Teacher:**
+```typescript
+const createTeacher = useCreateTeacher()
+
+await createTeacher.mutateAsync({
+  first_name: 'John',
+  last_name: 'Smith',
+  email: 'john@school.com',
+  contact: '+44 7700 900123',
+  primary_styles: 'Guitar, Vocals',
+  secondary_styles: 'Piano',
+  general_notes: 'DBS checked, available weekdays'
+})
+```
+
+**Update Teacher:**
+```typescript
+const updateTeacher = useUpdateTeacher()
+
+await updateTeacher.mutateAsync({
+  id: teacher.id,
+  persons_details_id: teacher.persons_details_id,
+  first_name: 'John',
+  primary_styles: 'Guitar, Vocals, Bass'
+})
+```
+
+**Delete Teacher:**
+```typescript
+const deleteTeacher = useDeleteTeacher()
+
+await deleteTeacher.mutateAsync({
+  teacherId: teacher.id,
+  personsDetailsId: teacher.persons_details_id
+})
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Complete Profile Information">
+    Fill in all available fields, especially contact details. Accurate email and phone numbers are essential for broadcast notifications and emergency contact.
+  </Accordion>
+
+  <Accordion title="Use Consistent Style Naming">
+    Maintain a standard list of teaching styles (e.g., "Guitar" not "guitar" or "GUITAR"). This ensures filters work correctly and reports are clean.
+  </Accordion>
+
+  <Accordion title="Meaningful General Notes">
+    Use the notes field for:
+    - DBS/background check status and expiry
+    - Days/times of availability
+    - Specific requirements or restrictions
+    - Emergency contact information
+    - Qualification highlights
+  </Accordion>
+
+  <Accordion title="Block Instead of Delete">
+    Rather than deleting teachers who leave, mark them as blocked. This:
+    - Preserves historical cover assignment data
+    - Maintains audit trails
+    - Allows reactivation if they return
+  </Accordion>
+
+  <Accordion title="Regular Data Hygiene">
+    Periodically review and update:
+    - Contact information (especially phone/email)
+    - Teaching styles as skills develop
+    - Blocked status for returning teachers
+  </Accordion>
+</AccordionGroup>
+
+## Common Scenarios
+
+### Scenario: Onboarding a New Music Teacher
+
+```markdown
+1. Click "Add Teacher"
+2. Enter: Emma Wilson, emma.wilson@music.com, +44 7700 900456
+3. Primary Styles: "Piano, Music Theory"
+4. Secondary Styles: "Flute, Composition"
+5. Notes: "Grade 8 Piano, DBS valid until Dec 2026, prefers KS2-KS3"
+6. Save → Teacher ready for assignment
+```
+
+### Scenario: Managing Teacher Availability
+
+**Teacher going on leave:**
+1. Open teacher profile
+2. Toggle "Blocked" status
+3. Check Calendar for their existing assignments
+4. Reassign their covers to other teachers
+5. Add note: "On leave until March 2026"
+
+**Teacher returning:**
+1. Unblock the teacher
+2. Update notes to reflect return
+3. Teacher appears in assignment dropdowns again
+
+### Scenario: Bulk Data Management
+
+**Exporting teacher list for reports:**
+1. Apply any filters (e.g., Primary Style = "Guitar")
+2. Click "Export" button
+3. Download includes all visible columns
+4. Open in Excel for analysis or mail merge
+
+<Info>
+  Teachers can be assigned to cover sessions via the [Cover Scheduling](/features/cover-scheduling) calendar or through [Broadcast](/features/broadcasts) availability requests.
+</Info>
+
+## UI Components
+
+The teacher management interface uses specialized components (from `src/features/teachers/components/`):
+
+**TeacherViewSheet** - Read-only profile view with action buttons
+- Shows complete teacher information
+- Provides Edit and Delete buttons
+- Displays blocked status prominently
+
+**TeacherFormSheet** - Editable form for create/update
+- Pre-fills data when editing
+- Validates required fields (first name, last name)
+- Handles both create and update flows
+
+**DeleteTeacherDialog** - Confirmation modal
+- Prevents accidental deletions
+- Shows teacher name in confirmation message
+- Handles cascade deletion of person details
+
+## Related Features
+
+<CardGroup cols={2}>
+  <Card title="Cover Scheduling" icon="calendar" href="/features/cover-scheduling">
+    Assign teachers to club sessions and covers
+  </Card>
+  <Card title="Broadcasts" icon="bullhorn" href="/features/broadcasts">
+    Send availability requests to teachers
+  </Card>
+</CardGroup>

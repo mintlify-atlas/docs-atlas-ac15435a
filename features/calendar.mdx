@@ -1,0 +1,652 @@
+---
+title: 'Calendar Integration'
+description: 'Technical details of the calendar system powering cover scheduling'
+icon: 'calendar-days'
+---
+
+## Overview
+
+ClubConnect UK uses **react-big-calendar** with custom extensions for drag-and-drop, multiple views, and color-coded events. This document covers the technical implementation for developers working with the calendar system.
+
+The calendar is the core visualization for the [Cover Scheduling](/features/cover-scheduling) feature.
+
+## Architecture
+
+### Calendar Stack
+
+<Steps>
+  <Step title="react-big-calendar">
+    Base calendar library with month/week/day views
+  </Step>
+  <Step title="Drag & Drop Addon">
+    Enables dragging events to reschedule
+  </Step>
+  <Step title="date-fns Localizer">
+    Date formatting and manipulation
+  </Step>
+  <Step title="Custom Components">
+    Tailored event rendering and UI elements
+  </Step>
+</Steps>
+
+**Key Dependencies:**
+```json
+{
+  "react-big-calendar": "^1.x.x",
+  "react-big-calendar/lib/addons/dragAndDrop": "Addon",
+  "date-fns": "^2.x.x"
+}
+```
+
+### File Structure
+
+```
+src/features/covers/
+├── components/
+│   ├── calendar-view.tsx          # Main calendar component
+│   ├── cover-quick-view.tsx       # Event details dialog
+│   ├── cover-quick-add.tsx        # Create/edit event form
+│   ├── view-toggle.tsx            # View mode switcher
+│   ├── year-view.tsx              # Year overview
+│   ├── covers-list-view.tsx       # Schedule (list) view
+│   └── mini-calendar.tsx          # Sidebar mini calendar
+├── utils/
+│   ├── formatters.ts              # Date/time formatting, colors
+│   └── mock-data.ts               # Test data generators
+├── api/
+│   ├── queries.ts                 # Data fetching hooks
+│   └── mutations.ts               # Update operations
+└── styles/
+    └── calendar-overrides.css     # Custom calendar styling
+```
+
+## Calendar Component
+
+The main `<CalendarView>` component (from `src/features/covers/components/calendar-view.tsx`):
+
+<CodeGroup>
+
+```typescript Component Props
+interface CalendarViewProps {
+  events: Array<CoverOccurrence>       // Raw occurrence data
+  onSelectEvent: (event: CoverOccurrence) => void
+  onSelectSlot?: (date: Date) => void  // Click empty slot
+  onDrillDown?: (date: Date) => void   // Double-click date
+  onEventDrop?: (event: CoverOccurrence, newDate: Date) => void
+  viewMode?: ViewType                  // month | week | day | 4days
+  date: Date                           // Current date
+  onNavigate: (date: Date) => void     // Date navigation
+  onViewChange?: (view: ViewType) => void
+}
+```
+
+```typescript Usage Example
+import { CalendarView } from '@/features/covers/components/calendar-view'
+
+function CoversPage() {
+  const [date, setDate] = useState(new Date())
+  const [view, setView] = useState<ViewType>('month')
+  const { data: occurrences } = useCoverOccurrences({ schoolId })
+
+  return (
+    <CalendarView
+      events={occurrences || []}
+      onSelectEvent={(occ) => handleViewDetails(occ)}
+      onSelectSlot={(date) => handleCreateSession(date)}
+      onEventDrop={(occ, newDate) => handleReschedule(occ, newDate)}
+      viewMode={view}
+      date={date}
+      onNavigate={setDate}
+      onViewChange={setView}
+    />
+  )
+}
+```
+
+</CodeGroup>
+
+## Data Transformation
+
+Cover occurrences must be transformed into calendar events:
+
+```typescript
+const calendarEvents = useMemo((): Array<CalendarEvent> => {
+  return events.map((occ) => {
+    const meetingDate = parseLocalDate(occ.meeting_date)
+
+    let start = new Date(meetingDate)
+    let end = new Date(meetingDate)
+    let displayEnd = new Date(meetingDate)
+
+    if (occ.cover_rule) {
+      const [startH, startM = 0] = occ.cover_rule.start_time
+        .split(':')
+        .map(Number)
+      const [endH, endM = 0] = occ.cover_rule.end_time.split(':').map(Number)
+
+      start = set(meetingDate, {
+        hours: startH,
+        minutes: startM,
+        seconds: 0,
+        milliseconds: 0,
+      })
+      
+      displayEnd = set(meetingDate, {
+        hours: endH,
+        minutes: endM,
+        seconds: 0,
+        milliseconds: 0,
+      })
+      
+      // react-big-calendar requires end to be +1 hour for correct rendering
+      end = addHours(displayEnd, 1)
+    } else {
+      // Default 9-10 AM if no rule
+      start = set(meetingDate, { hours: 9, minutes: 0, seconds: 0 })
+      displayEnd = set(meetingDate, { hours: 10, minutes: 0, seconds: 0 })
+      end = addHours(displayEnd, 1)
+    }
+
+    return {
+      id: occ.id,
+      title:
+        occ.cover_rule?.club?.club_name ||
+        occ.cover_rule?.school?.school_name ||
+        'Cover',
+      start,
+      end,
+      displayStart: start,
+      displayEnd,
+      resource: occ,  // Store full occurrence for access in handlers
+    }
+  })
+}, [events])
+```
+
+<Note>
+  The `end` time is 1 hour past `displayEnd` due to react-big-calendar's rendering logic. Use `displayEnd` for display purposes.
+</Note>
+
+## Custom Event Components
+
+Two different event renderers based on view mode:
+
+### Month View Event
+
+```typescript
+const MonthEventComponent = ({ event }: EventComponentProps) => {
+  const occ = event.resource
+  const teacher = occ.assignments?.[0]?.teacher
+  const teacherInitials = teacher
+    ? `${teacher.person_details.first_name[0]}${teacher.person_details.last_name[0]}`
+    : null
+  const schoolName = occ.cover_rule?.school?.school_name || ''
+  const clubName = occ.cover_rule?.club?.club_name || ''
+  const colors = getSchoolColors(schoolName)
+
+  return (
+    <div
+      className="flex flex-col text-[10px] w-full px-2 py-1.5 rounded border-l-2 shadow-sm"
+      style={{
+        backgroundColor: colors.bgHex,
+        color: colors.textHex,
+        borderLeftColor: colors.borderHex,
+      }}
+    >
+      <div className="flex items-center justify-between gap-1 overflow-hidden">
+        <span className="truncate font-bold text-[10.5px] leading-tight">
+          {clubName || event.title}
+        </span>
+        {teacherInitials && (
+          <span className="bg-black/10 rounded px-1 font-bold text-[8px] whitespace-nowrap opacity-70">
+            {teacherInitials}
+          </span>
+        )}
+      </div>
+      {schoolName && (
+        <div className="text-[9.5px] opacity-80 truncate leading-tight mt-1">
+          {schoolName}
+        </div>
+      )}
+    </div>
+  )
+}
+```
+
+### Week/Day View Event
+
+```typescript
+const WeekEventComponent = ({ event }: EventComponentProps) => {
+  const occ = event.resource
+  const teacher = occ.assignments?.[0]?.teacher
+  const teacherName = teacher
+    ? `${teacher.person_details.first_name} ${teacher.person_details.last_name}`
+    : 'Unassigned'
+  const schoolName = occ.cover_rule?.school?.school_name || ''
+  const clubName = occ.cover_rule?.club?.club_name || ''
+  const colors = getSchoolColors(schoolName)
+
+  return (
+    <div
+      className="h-full w-full px-2 py-1.5 border-l-4 rounded-r shadow-sm overflow-hidden"
+      style={{
+        backgroundColor: colors.bgHex,
+        color: colors.textHex,
+        borderLeftColor: colors.borderHex,
+      }}
+    >
+      <div className="font-bold text-xs truncate leading-tight">
+        {clubName || event.title}
+      </div>
+      {schoolName && (
+        <div className="text-[10px] opacity-90 mt-1 font-semibold truncate">
+          {schoolName}
+        </div>
+      )}
+      <div className="text-[10px] opacity-80 mt-1 flex items-center gap-1">
+        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-50" />
+        <span className="truncate">{teacherName}</span>
+      </div>
+    </div>
+  )
+}
+```
+
+## Color System
+
+School-based color generation ensures consistent visual identification:
+
+```typescript
+export const getSchoolColors = (schoolName: string) => {
+  // Hash school name to generate consistent color
+  const hash = schoolName.split('').reduce((acc, char) => {
+    return char.charCodeAt(0) + ((acc << 5) - acc)
+  }, 0)
+
+  // Generate HSL color
+  const hue = Math.abs(hash % 360)
+  const saturation = 65 + (Math.abs(hash % 20))
+  const lightness = 88  // Light background
+
+  // Convert to hex for styling
+  const bgHex = hslToHex(hue, saturation, lightness)
+  const textHex = hslToHex(hue, saturation, 25)  // Dark text
+  const borderHex = hslToHex(hue, saturation, 50)  // Medium border
+
+  return { bgHex, textHex, borderHex }
+}
+```
+
+**Color Palette Example:**
+- Riverside Academy: Light green background, dark green text
+- Oak School: Light blue background, dark blue text
+- Westside Primary: Light orange background, dark orange text
+
+## Drag & Drop Implementation
+
+### Event Drop Handler
+
+```typescript
+const handleEventDrop = (info: EventDropInfo) => {
+  if (onEventDrop) {
+    onEventDrop(info.event.resource, info.start)
+  }
+}
+
+// In parent component:
+const handleEventDrop = async (
+  occurrence: CoverOccurrence,
+  newDate: Date,
+) => {
+  const dateStr = format(newDate, 'yyyy-MM-dd')
+
+  try {
+    await moveOccurrence.mutateAsync({
+      id: occurrence.id,
+      newDate: dateStr,
+    })
+    toast.success(`Moved cover to ${format(newDate, 'PPP')}`)
+  } catch (error) {
+    console.error('Failed to move cover', error)
+    toast.error('Failed to move cover session')
+  }
+}
+```
+
+### Drop from Outside
+
+Supports dragging events from popovers to calendar:
+
+```typescript
+const [draggedOutsideEvent, setDraggedOutsideEvent] =
+  useState<CalendarEvent | null>(null)
+
+// In popover event list:
+<div
+  draggable
+  onDragStart={() => setDraggedOutsideEvent(event)}
+  onClick={(e) => {
+    e.stopPropagation()
+    onSelectEvent(event.resource)
+  }}
+>
+  <MonthEventComponent event={event} />
+</div>
+
+// In calendar props:
+onDropFromOutside={(info: DropFromOutsideInfo) => {
+  if (draggedOutsideEvent) {
+    handleEventDrop({ 
+      event: draggedOutsideEvent, 
+      start: info.start 
+    })
+    setDraggedOutsideEvent(null)
+  }
+}}
+```
+
+## Custom Show More Component
+
+Month view overflow handling with Radix Popover:
+
+```typescript
+const CustomShowMore = ({
+  events: dayEvents,
+  label,
+  slotMetrics,
+}: ShowMoreProps) => {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          className="rbc-show-more focus:outline-none w-full text-left"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {label || `+${dayEvents.length - 1} more`}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-72 p-0 shadow-2xl border overflow-hidden rounded-xl z-50 bg-white"
+        align="center"
+        sideOffset={5}
+      >
+        <div className="bg-muted/50 px-3 py-2 border-b flex items-center justify-between">
+          <span className="font-semibold text-sm">
+            {format(
+              slotMetrics?.date ||
+              (dayEvents.length > 0 ? dayEvents[0].start : new Date()),
+              'EEEE, MMM d',
+            )}
+          </span>
+          <PopoverClose asChild>
+            <Button variant="ghost" size="icon-xs">
+              <X className="h-3 w-3" />
+            </Button>
+          </PopoverClose>
+        </div>
+        <div className="p-2 space-y-1.5 max-h-[300px] overflow-y-auto">
+          {dayEvents.map((event: CalendarEvent) => (
+            <div
+              key={event.id}
+              draggable
+              onDragStart={() => setDraggedOutsideEvent(event)}
+              onClick={(e) => {
+                e.stopPropagation()
+                onSelectEvent(event.resource)
+              }}
+              className="cursor-pointer"
+            >
+              <MonthEventComponent event={event} />
+            </div>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+```
+
+## View Configuration
+
+### Calendar Props
+
+```typescript
+<DragAndDropCalendar
+  localizer={localizer}
+  events={calendarEvents}
+  startAccessor="start"
+  endAccessor="end"
+  style={{ height: '100%' }}
+  toolbar={false}  // Custom toolbar in parent
+  view={view}
+  onView={handleViewChange}
+  date={date}
+  onNavigate={handleNavigate}
+  defaultView={Views.WEEK}
+  views={[Views.MONTH, Views.WEEK, Views.WORK_WEEK, Views.DAY]}
+  step={30}  // 30-minute intervals
+  showMultiDayTimes
+  min={set(new Date(), { hours: 7, minutes: 0 })}   // 7 AM
+  max={set(new Date(), { hours: 22, minutes: 0 })}  // 10 PM
+  scrollToTime={set(new Date(), { hours: 9, minutes: 0 })}  // Auto-scroll to 9 AM
+  draggableAccessor={() => true}
+  selectable={true}
+  onSelectSlot={(slotInfo: SlotInfo) => {
+    // Prevent clicking gray (off-month) days in month view
+    if (view === Views.MONTH) {
+      if (slotInfo.start.getMonth() !== date.getMonth()) return
+    }
+    onSelectSlot?.(slotInfo.start)
+  }}
+  onDrillDown={(drillDate: Date) => {
+    if (view === Views.MONTH) {
+      if (drillDate.getMonth() !== date.getMonth()) return
+    }
+    onDrillDown?.(drillDate)
+  }}
+  onEventDrop={handleEventDrop}
+  onDropFromOutside={handleDropFromOutside}
+  components={{
+    event: view === Views.MONTH ? MonthEventComponent : WeekEventComponent,
+    dateCellWrapper: CustomDateCellWrapper,
+    showMore: CustomShowMore,
+  }}
+  eventPropGetter={() => ({
+    className: cn(
+      'cursor-grab active:cursor-grabbing hover:opacity-90 transition-opacity',
+      view === Views.MONTH ? 'month-event' : 'week-event',
+    ),
+    style: {
+      border: 'none',
+    },
+  })}
+  onSelectEvent={(event: CalendarEvent) => onSelectEvent(event.resource)}
+  formats={{
+    dayHeaderFormat: (d: Date) => format(d, 'EEE d'),
+    timeGutterFormat: (d: Date) => format(d, 'h a'),
+    eventTimeRangeFormat: () => '',  // Hide default time (rendered in component)
+  }}
+/>
+```
+
+### Mobile Responsiveness
+
+```typescript
+useEffect(() => {
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 640
+  let newView: View
+
+  if ((viewMode === 'week' || viewMode === 'month') && isMobile) {
+    newView = Views.DAY  // Force day view on mobile
+  } else {
+    newView = getCalendarView(viewMode)
+  }
+
+  setView(newView)
+}, [viewMode])
+```
+
+## Styling
+
+Custom CSS overrides (in `src/features/covers/styles/calendar-overrides.css`):
+
+```css
+/* Month view event spacing */
+.rbc-month-view .rbc-event {
+  margin: 1px 2px;
+  border-radius: 4px;
+}
+
+/* Week view time slots */
+.rbc-time-slot {
+  min-height: 40px;
+}
+
+/* Header styling */
+.rbc-header {
+  padding: 8px 4px;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+/* Off-month days (greyed out) */
+.rbc-off-range {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* Selected day highlight */
+.rbc-today {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+/* Drag cursor */
+.rbc-addons-dnd-dragging {
+  cursor: grabbing !important;
+}
+```
+
+## Performance Optimizations
+
+<AccordionGroup>
+  <Accordion title="Event Memoization">
+    Use `useMemo` for event transformation to avoid recalculating on every render:
+    
+    ```typescript
+    const calendarEvents = useMemo(() => {
+      return transformOccurrencesToEvents(occurrences)
+    }, [occurrences])
+    ```
+  </Accordion>
+
+  <Accordion title="Lazy Loading">
+    Fetch only occurrences for the visible date range:
+    
+    ```typescript
+    const { data: occurrences } = useCoverOccurrences({
+      schoolId,
+      startDate: format(startOfMonth(date), 'yyyy-MM-dd'),
+      endDate: format(endOfMonth(date), 'yyyy-MM-dd')
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Virtual Scrolling">
+    For schedule view, implement virtual scrolling for large datasets:
+    
+    ```typescript
+    import { useVirtualizer } from '@tanstack/react-virtual'
+    
+    const virtualizer = useVirtualizer({
+      count: occurrences.length,
+      getScrollElement: () => parentRef.current,
+      estimateSize: () => 80,
+    })
+    ```
+  </Accordion>
+
+  <Accordion title="Component Splitting">
+    Extract heavy components into separate files with React.memo:
+    
+    ```typescript
+    export const MonthEventComponent = React.memo(({ event }: EventComponentProps) => {
+      // Component implementation
+    })
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Testing
+
+Key areas to test:
+
+<CodeGroup>
+
+```typescript Event Transformation
+import { transformOccurrenceToEvent } from './formatters'
+
+describe('transformOccurrenceToEvent', () => {
+  it('should handle occurrences with cover rules', () => {
+    const occurrence: CoverOccurrence = {
+      id: '1',
+      meeting_date: '2025-01-15',
+      cover_rule: {
+        start_time: '15:00:00',
+        end_time: '16:00:00',
+        club: { club_name: 'Chess Club' },
+        school: { school_name: 'Test School' }
+      }
+    }
+    
+    const event = transformOccurrenceToEvent(occurrence)
+    
+    expect(event.title).toBe('Chess Club')
+    expect(event.start.getHours()).toBe(15)
+    expect(event.displayEnd.getHours()).toBe(16)
+  })
+})
+```
+
+```typescript Drag & Drop
+import { render, fireEvent } from '@testing-library/react'
+import { CalendarView } from './calendar-view'
+
+test('calls onEventDrop when event is dragged', () => {
+  const onEventDrop = jest.fn()
+  const events = [mockOccurrence]
+  
+  const { getByText } = render(
+    <CalendarView
+      events={events}
+      onEventDrop={onEventDrop}
+      viewMode="week"
+      date={new Date()}
+      onNavigate={() => {}}
+    />
+  )
+  
+  const eventElement = getByText('Chess Club')
+  
+  // Simulate drag (library-specific testing)
+  fireEvent.dragStart(eventElement)
+  fireEvent.drop(/* target slot */)
+  
+  expect(onEventDrop).toHaveBeenCalledWith(
+    expect.objectContaining({ id: mockOccurrence.id }),
+    expect.any(Date)
+  )
+})
+```
+
+</CodeGroup>
+
+## Related Documentation
+
+<CardGroup cols={2}>
+  <Card title="Cover Scheduling (User Guide)" icon="calendar" href="/features/cover-scheduling">
+    End-user documentation for the calendar interface
+  </Card>
+  <Card title="react-big-calendar Docs" icon="book" href="https://jquense.github.io/react-big-calendar/">
+    Official documentation for the calendar library
+  </Card>
+</CardGroup>

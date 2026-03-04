@@ -1,80 +1,392 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quickstart
+description: Get ClubConnect UK running locally in under 5 minutes
 ---
 
-## Get started in three steps
+# Quickstart
 
-Get your documentation site running locally and make your first customization.
+Get ClubConnect UK up and running on your local machine quickly. This guide will take you from cloning the repository to accessing a fully functional application.
 
-### Step 1: Set up your local environment
+<Note>
+  **Prerequisites**: Node.js 18+, pnpm, and a Supabase account. See [Installation](/installation) for detailed setup.
+</Note>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+## Quick setup
+
+<Steps>
+  <Step title="Clone the repository">
+    Get the source code from your repository:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    git clone <your-repository-url>
+    cd ClubConnectUK
+    ```
+  </Step>
+  
+  <Step title="Install dependencies">
+    Install all required packages using pnpm:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```bash
+    pnpm install
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
+    <Info>
+      Installation typically takes 1-2 minutes depending on your internet connection.
+    </Info>
+  </Step>
+  
+  <Step title="Configure environment variables">
+    Create a `.env` file in the root directory with your Supabase credentials:
+    
+    <CodeGroup>
+    ```bash .env
+    # Supabase Configuration
+    VITE_SUPABASE_URL=your_supabase_project_url
+    VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+    ```
+    </CodeGroup>
+    
+    <Accordion title="Where to find your Supabase credentials">
+      1. Go to your [Supabase Dashboard](https://app.supabase.com)
+      2. Select your project
+      3. Navigate to **Settings** → **API**
+      4. Copy the **Project URL** and **anon/public key**
+    </Accordion>
+  </Step>
+  
+  <Step title="Initialize the database">
+    Link your Supabase project and apply migrations:
+    
+    ```bash
+    # Link to your Supabase project
+    npx supabase link --project-ref your-project-ref
+    
+    # Apply all database migrations
+    npx supabase db push
+    ```
+    
+    <Warning>
+      Replace `your-project-ref` with your actual Supabase project reference ID from the dashboard URL.
+    </Warning>
+    
+    This creates the complete database schema including:
+    - Schools and clubs tables
+    - Teacher profiles and documents
+    - Cover rules and occurrences
+    - Assignment tracking
+    - Broadcast and messaging systems
+  </Step>
+  
+  <Step title="Seed the database (optional)">
+    Add sample data for testing:
+    
+    ```bash
+    # Option 1: Use the Supabase Dashboard
+    # Go to SQL Editor and run the contents of supabase/seed.sql
+    
+    # Option 2: Reset database with seeds (local development)
+    npx supabase db reset
+    ```
+    
+    <Tip>
+      Seeding is recommended for development to test features with realistic data.
+    </Tip>
+  </Step>
+  
+  <Step title="Start the development server">
+    Launch the application in development mode:
+    
+    ```bash
+    pnpm dev
+    ```
+    
+    The application will start on `http://localhost:3000`
+    
+    <Info>
+      The dev server includes hot module replacement (HMR) for instant updates during development.
+    </Info>
+  </Step>
+  
+  <Step title="Access the application">
+    Open your browser and navigate to:
+    
+    ```
+    http://localhost:3000
+    ```
+    
+    You'll see the ClubConnect UK login page.
+  </Step>
+</Steps>
+
+## First login
+
+To access the application, you need to create a user account in Supabase:
+
+<Steps>
+  <Step title="Create a user in Supabase">
+    1. Go to your [Supabase Dashboard](https://app.supabase.com)
+    2. Navigate to **Authentication** → **Users**
+    3. Click **Add User** → **Create new user**
+    4. Enter an email and password
+    5. Click **Create user**
+  </Step>
+  
+  <Step title="Log in to ClubConnect UK">
+    Return to `http://localhost:3000` and enter your credentials:
+    
+    <CodeGroup>
+    ```typescript Login Form
+    // The login component uses Supabase authentication
+    const handleSubmit = async (e: React.FormEvent) => {
+      e.preventDefault()
+      const result = await login({ email, password })
+      
+      if (result.error) {
+        setError(result.error.message)
+      } else {
+        router.navigate({ to: '/dashboard' })
+      }
+    }
+    ```
+    </CodeGroup>
+    
+    <Info>
+      Authentication uses Supabase Auth with session persistence and auto-refresh tokens.
+    </Info>
+  </Step>
+  
+  <Step title="Explore the dashboard">
+    After successful login, you'll be redirected to the dashboard at `/dashboard`.
+    
+    The dashboard displays:
+    - **Total Active Clubs**: Count of clubs across all schools
+    - **Open Cover Requests**: Unstaffed or pending cover assignments
+    - **Active Teachers**: Non-blocked teacher profiles
+    - **Message Success Rate**: Percentage of successfully delivered messages
+    - **Upcoming Priorities**: Next 7 days of club meetings
+    - **Live Activity**: Recent system actions and updates
+  </Step>
+</Steps>
+
+## Development workflow
+
+### Running the development server
+
+```bash
+pnpm dev
+```
+
+The dev server runs on port 3000 and includes:
+- Hot module replacement
+- TanStack Router DevTools
+- TanStack Query DevTools
+- React DevTools integration
+
+<Accordion title="View the dev server configuration">
+```typescript vite.config.ts
+import { defineConfig } from 'vite'
+import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import viteReact from '@vitejs/plugin-react'
+import viteTsConfigPaths from 'vite-tsconfig-paths'
+import tailwindcss from '@tailwindcss/vite'
+
+export default defineConfig({
+  plugins: [
+    viteTsConfigPaths({ projects: ['./tsconfig.json'] }),
+    tailwindcss(),
+    tanstackStart(),
+    viteReact({
+      babel: {
+        plugins: ['babel-plugin-react-compiler'],
+      },
+    }),
+  ],
+})
+```
 </Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+### Available scripts
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+<CodeGroup>
+```json package.json
+{
+  "scripts": {
+    "dev": "vite dev --port 3000",
+    "build": "vite build",
+    "serve": "vite preview",
+    "test": "vitest run",
+    "lint": "eslint",
+    "format": "prettier",
+    "check": "prettier --write . && eslint --fix"
+  }
+}
+```
+</CodeGroup>
 
-### Step 3: Go live
+| Script | Description |
+|--------|-------------|
+| `pnpm dev` | Start development server on port 3000 |
+| `pnpm build` | Build for production |
+| `pnpm serve` | Preview production build |
+| `pnpm test` | Run unit tests with Vitest |
+| `pnpm lint` | Check code with ESLint |
+| `pnpm format` | Format code with Prettier |
+| `pnpm check` | Format and fix all issues |
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+### Database management
+
+```bash
+# View current database status
+npx supabase db diff
+
+# Create a new migration
+npx supabase migration new your_migration_name
+
+# Apply pending migrations
+npx supabase db push
+
+# Reset database (local development only)
+npx supabase db reset
+```
+
+## Common development tasks
+
+### Adding a new UI component
+
+ClubConnect UK uses Shadcn/ui components:
+
+```bash
+pnpx shadcn@latest add button
+pnpx shadcn@latest add card
+pnpx shadcn@latest add dialog
+```
+
+<Info>
+  Components are automatically added to `src/components/ui/` with Tailwind CSS styling.
+</Info>
+
+### Creating a new route
+
+TanStack Router uses file-based routing. Add files to `src/routes/`:
+
+```bash
+src/routes/
+├── index.tsx                    # Login page (/)
+├── __root.tsx                   # Root layout
+└── _protected/                  # Protected routes
+    ├── dashboard.tsx            # Dashboard (/dashboard)
+    ├── teachers/
+    │   └── teacher-list.tsx     # Teachers list
+    ├── clubs/
+    │   ├── club-list.tsx        # Clubs list
+    │   └── $clubId.tsx          # Club detail (dynamic)
+    └── covers/
+        ├── index.tsx            # Covers calendar
+        └── $occurrenceId.tsx    # Cover detail (dynamic)
+```
+
+<Tip>
+  Files prefixed with `_` create layout routes, while `$` indicates dynamic segments.
+</Tip>
+
+### Querying the database
+
+Use TanStack Query with the Supabase client:
+
+```typescript
+import { useQuery } from '@tanstack/react-query'
+import { supabase } from '@/services/supabase'
+
+export function useClubs() {
+  return useQuery({
+    queryKey: ['clubs'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('clubs')
+        .select('*, school:schools(*)')
+        .order('club_name')
+      
+      if (error) throw error
+      return data
+    },
+  })
+}
+```
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Installation Guide" icon="book" href="/installation">
+    Learn about detailed setup, prerequisites, and configuration options
+  </Card>
+  
+  <Card title="Database Schema" icon="database" href="/guides/database-schema">
+    Explore the complete database structure and relationships
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/schema-overview">
+    Discover available API endpoints and Supabase queries
+  </Card>
+  
+  <Card title="Core Features" icon="puzzle-piece" href="/features/clubs">
+    Explore club management, teacher scheduling, and more
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Troubleshooting
+
+<Accordion title="Port 3000 already in use">
+  Change the port in `package.json`:
+  
+  ```json
+  {
+    "scripts": {
+      "dev": "vite dev --port 3001"
+    }
+  }
+  ```
+  
+  Or stop the process using port 3000:
+  
+  ```bash
+  # Find the process
+  lsof -i :3000
+  
+  # Kill the process
+  kill -9 <PID>
+  ```
+</Accordion>
+
+<Accordion title="Supabase connection errors">
+  Verify your environment variables:
+  
+  1. Check `.env` file exists in project root
+  2. Ensure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` are set
+  3. Restart the dev server after changing `.env`
+  4. Verify credentials in Supabase Dashboard → Settings → API
+</Accordion>
+
+<Accordion title="Database migration failures">
+  Common causes and solutions:
+  
+  - **Not linked to project**: Run `npx supabase link --project-ref your-ref`
+  - **Network issues**: Check internet connection
+  - **SQL errors**: Review migration files for syntax errors
+  - **Permission issues**: Verify you're the project owner
+  
+  View detailed error messages:
+  
+  ```bash
+  npx supabase db push --debug
+  ```
+</Accordion>
+
+<Accordion title="TypeScript errors">
+  Regenerate types from Supabase:
+  
+  ```bash
+  npx supabase gen types typescript --linked > src/types/supabase.ts
+  ```
+  
+  Then restart the TypeScript server in your editor.
+</Accordion>

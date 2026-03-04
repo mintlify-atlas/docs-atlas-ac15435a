@@ -1,0 +1,258 @@
+---
+title: Dashboard
+description: Monitor your organization's key metrics and upcoming activities at a glance
+---
+
+The Dashboard is the central hub of ClubConnect UK, providing a real-time overview of your organization's operations. It displays key performance indicators (KPIs), upcoming cover sessions, and quick actions to manage your clubs and teachers.
+
+## Overview
+
+The Dashboard is accessible at `/dashboard` after logging in and serves as the landing page for authenticated users. It provides:
+
+- **Real-time KPIs**: Track active clubs, open cover requests, active teachers, and messaging success rates
+- **Upcoming Agenda**: View the next 7 days of scheduled cover sessions with assignment status
+- **Quick Actions**: Jump directly to key features like creating broadcasts or managing covers
+
+## Key Performance Indicators
+
+The Dashboard displays four primary KPIs that update automatically:
+
+<CardGroup cols={2}>
+  <Card title="Total Active Clubs" icon="school">
+    Count of all clubs with `active` status across all schools in your organization
+  </Card>
+  <Card title="Open Cover Requests" icon="user-clock">
+    Number of cover assignments with `pending` or `invited` status awaiting teacher response
+  </Card>
+  <Card title="Active Teachers" icon="user-group">
+    Count of non-blocked teachers available for cover assignments
+  </Card>
+  <Card title="Message Success Rate" icon="chart-line">
+    Percentage of delivered messages in the last 30 days
+  </Card>
+</CardGroup>
+
+### KPI Details
+
+Each KPI card shows:
+- Current value with icon
+- Color-coded background for visual distinction
+- Real-time updates (refreshed every 5 minutes)
+
+```typescript
+// Dashboard stats query
+const { data: stats } = useDashboardStats()
+
+// Stats structure
+{
+  totalClubs: number        // Active clubs count
+  openCovers: number        // Pending/invited assignments
+  activeTeachers: number    // Non-blocked teachers
+  messageSuccessRate: string // e.g., "95.3%"
+}
+```
+
+## Upcoming Agenda
+
+The agenda section displays upcoming cover sessions for the next 7 days, helping you:
+
+- **Identify gaps**: See sessions without confirmed teacher assignments
+- **Track assignments**: Monitor teacher acceptance/decline status
+- **Plan ahead**: Anticipate staffing needs for the week
+
+### Agenda Features
+
+<Steps>
+  <Step title="Session Cards">
+    Each session shows:
+    - Club name and code
+    - Date and time
+    - Assignment status (confirmed, pending, or unassigned)
+    - Teacher name (if assigned)
+  </Step>
+  
+  <Step title="Status Indicators">
+    Visual badges indicate session status:
+    - **Green (Confirmed)**: Teacher accepted and confirmed
+    - **Yellow (Pending)**: Invitation sent, awaiting response
+    - **Red (Unassigned)**: No teacher assigned yet
+  </Step>
+  
+  <Step title="Quick Actions">
+    Click on a session to:
+    - View full cover details
+    - Send broadcast to find teachers
+    - Manually assign a teacher
+  </Step>
+</Steps>
+
+### Agenda Query
+
+```typescript
+import { useUpcomingAgenda } from '@/features/dashboard/api/queries'
+
+function UpcomingAgenda() {
+  const { data: agenda } = useUpcomingAgenda()
+  
+  return (
+    <div>
+      {agenda?.map((occurrence) => (
+        <SessionCard
+          key={occurrence.id}
+          occurrence={occurrence}
+        />
+      ))}
+    </div>
+  )
+}
+```
+
+The agenda query:
+- Fetches sessions from today to 7 days ahead
+- Includes cover rule, club, and teacher assignment details
+- Sorts by meeting date (ascending)
+- Limits to 10 sessions
+- Refreshes every 2 minutes
+
+## Quick Actions
+
+The Dashboard provides quick access to common workflows:
+
+<CardGroup cols={3}>
+  <Card title="Create Broadcast" icon="paper-plane" href="/features/broadcasts">
+    Send messages to teachers for cover requests or announcements
+  </Card>
+  <Card title="Manage Clubs" icon="school" href="/features/clubs">
+    Add new clubs or update existing club details
+  </Card>
+  <Card title="View Calendar" icon="calendar" href="/features/calendar">
+    Visualize all cover sessions in calendar view
+  </Card>
+</CardGroup>
+
+## User Workflow
+
+### Daily Check-in
+
+1. **Review KPIs**: Check for any unusual metrics (e.g., high open cover requests)
+2. **Scan Agenda**: Identify sessions needing teacher assignments
+3. **Take Action**: Send broadcasts or manually assign teachers as needed
+
+### Example Scenario
+
+<Accordion title="Handling Multiple Unassigned Sessions">
+**Situation**: Dashboard shows 5 open cover requests for the upcoming week.
+
+**Actions**:
+1. Click on each session to review details
+2. Group similar sessions (same day/time) for bulk broadcasting
+3. Navigate to **Broadcasts** → **New Broadcast**
+4. Select audience: All available teachers
+5. Send cover request with session details
+6. Return to Dashboard to monitor responses
+7. As teachers accept, agenda cards update to "Confirmed" status
+
+**Result**: Within hours, most sessions are staffed, and open cover count drops.
+</Accordion>
+
+## Data Refresh
+
+The Dashboard uses different refresh intervals for optimal performance:
+
+| Data | Refresh Interval | Query Key |
+|------|------------------|-----------|
+| Dashboard Stats | 5 minutes | `['dashboard-stats']` |
+| Upcoming Agenda | 2 minutes | `['upcoming-agenda']` |
+
+<Info>
+Data is cached using React Query and only refetches when stale or manually invalidated.
+</Info>
+
+## Implementation Details
+
+### Dashboard Stats Query
+
+The `useDashboardStats` hook aggregates data from multiple tables:
+
+```typescript
+// Parallel queries for performance
+const [clubsCount, teachersCount, messagesStats] = await Promise.all([
+  supabase.from('clubs').select('*', { count: 'exact', head: true }),
+  supabase.from('cover_occurrences')
+    .select('id', { count: 'exact', head: true }),
+  supabase.from('teachers')
+    .select('*', { count: 'exact', head: true })
+    .eq('is_blocked', false),
+  supabase.from('messages')
+    .select('status', { count: 'exact' })
+    .gte('created_at', thirtyDaysAgo),
+])
+
+// Calculate message success rate
+const successRate = totalMessages > 0 
+  ? (successMessages / totalMessages) * 100 
+  : 100
+```
+
+### Upcoming Agenda Query
+
+Fetches cover occurrences with nested relations:
+
+```typescript
+const { data } = await supabase
+  .from('cover_occurrences')
+  .select(`
+    id,
+    cover_rule_id,
+    meeting_date,
+    cover_rule:cover_rule_id (
+      start_time,
+      end_time,
+      club:club_id (club_name, club_code)
+    ),
+    assignments:teacher_cover_assignments (
+      status,
+      teacher:teacher_id (
+        persons_details:persons_details_id (first_name, last_name)
+      )
+    )
+  `)
+  .gte('meeting_date', today)
+  .lte('meeting_date', sevenDaysFromNow)
+  .order('meeting_date', { ascending: true })
+  .limit(10)
+```
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Daily dashboard review">
+    Check the Dashboard first thing each day to stay ahead of staffing needs. Set a reminder to review at consistent times.
+  </Accordion>
+  
+  <Accordion title="Respond to high open cover counts">
+    If "Open Cover Requests" exceed 3-5, prioritize sending broadcasts or manual assignments to avoid last-minute staffing issues.
+  </Accordion>
+  
+  <Accordion title="Monitor message success rate">
+    If success rate drops below 90%, check teacher contact details and messaging service status.
+  </Accordion>
+  
+  <Accordion title="Use agenda for planning">
+    Export agenda data or screenshot for weekly planning meetings with your team.
+  </Accordion>
+</AccordionGroup>
+
+## Related Features
+
+<CardGroup cols={3}>
+  <Card title="Cover Scheduling" icon="calendar-check" href="/features/cover-scheduling">
+    Manage the full calendar of cover sessions
+  </Card>
+  <Card title="Broadcasts" icon="megaphone" href="/features/broadcasts">
+    Send targeted messages to find teachers
+  </Card>
+  <Card title="Teachers" icon="user-group" href="/features/teachers">
+    View and manage your teacher pool
+  </Card>
+</CardGroup>

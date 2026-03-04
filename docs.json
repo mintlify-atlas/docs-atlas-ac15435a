@@ -39,6 +39,7 @@
           {
             "group": "Core Features",
             "pages": [
+              "features/dashboard",
               "features/clubs",
               "features/teachers",
               "features/cover-scheduling",
